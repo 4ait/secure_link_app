@@ -1,0 +1,44 @@
+[package]
+name = "secure_link_app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["Ridtt"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "secure_link_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+secure-link-windows-service_manager = ["secure_link_windows_service_manager"]
+windows-credential-manager_rs  = ["windows_credential_manager_rs"]
+secure-link-embedded-client = [ "secure_link_client"]
+
+windows = [
+    "secure-link-windows-service_manager",
+    "windows-credential-manager_rs",
+]
+
+default = ["secure-link-embedded-client"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+secure_link_client = { git = "https://github.com/4ait/secure_link_client", features = ["load_dev_certs"], optional = true }
+secure_link_windows_service_manager = { git = "https://github.com/4ait/secure_link_windows_service_manager", optional = true }
+windows_credential_manager_rs = { git = "https://github.com/4ait/windows_credential_manager_rs", optional = true }
+async-trait = "0.1.88"
+thiserror = "2.0.12"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+

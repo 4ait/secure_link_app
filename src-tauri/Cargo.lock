@@ -3594,7 +3594,7 @@ dependencies = [
 [[package]]
 name = "secure_link_windows_service_manager"
 version = "0.1.0"
-source = "git+https://github.com/4ait/secure_link_windows_service_manager#41feb22c145158b37b3e406a01449b02d42feb3a"
+source = "git+https://github.com/4ait/secure_link_windows_service_manager#c69c8adb2eb544b086a40c35acdf1427150c2fef"
 dependencies = [
  "windows-service",
  "windows-sys 0.59.0",
@@ -5357,7 +5357,7 @@ checksum = "c7651a1f62a11b8cbd5e0d42526e55f2c99886c77e007179efff86c2b137e66c"
 [[package]]
 name = "windows_credential_manager_rs"
 version = "0.1.0"
-source = "git+https://github.com/4ait/windows_credential_manager_rs#b904b9e329d4d99a29584b9c27c881c9a1d533dc"
+source = "git+https://github.com/4ait/windows_credential_manager_rs#8eb228a5c4f0c23ce85cd8657c18cbacb1a69d92"
 dependencies = [
  "windows",
 ]

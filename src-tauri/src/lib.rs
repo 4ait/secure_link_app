@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
+use windows_credential_manager_rs::CredentialManager;
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
-use crate::secure_link_embedded_client::SecureLinkEmbeddedClient;
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -10,6 +10,7 @@ mod secure_link_windows_service;
 #[cfg(feature = "secure-link-embedded-client")]
 mod secure_link_embedded_client;
 
+pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-key";
 
 struct AppData {
     secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>
@@ -43,8 +44,29 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
             Some(secure_link_client) => secure_link_client.clone(),
             None => {
 
-                let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
-                let client = SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001);
+                    #[cfg(feature = "secure-link-embedded-client")]
+                    let client = {
+                        let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
+                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
+                    };
+                    #[cfg(feature = "secure-link-windows-service_manager")]
+                    let client = {
+
+
+                        secure_link_windows_service_manager::uninstall_service();
+
+                        secure_link_windows_service_manager::install_service(
+                            r#"E:\source\secure_link_windows_service\target\debug\secure_link_windows_service.exe"#
+                        ).map_err(|err|err.to_string())?;
+
+                        let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
+
+                        CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token).expect("Failed to store token");
+
+                        secure_link_windows_service::SecureLinkWindowsService::new( "192.168.12.16", 6001)
+
+                    };
+
                 let client_arc = Arc::new(client);
                 *secure_link_client_locked = Some(client_arc.clone());
                 client_arc

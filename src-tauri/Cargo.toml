@@ -24,7 +24,7 @@ windows = [
     "windows-credential-manager_rs",
 ]
 
-default = ["secure-link-embedded-client"]
+default = ["windows"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }

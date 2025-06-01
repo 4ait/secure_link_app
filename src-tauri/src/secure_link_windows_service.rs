@@ -1,8 +1,6 @@
 
 use async_trait::async_trait;
 use secure_link_windows_service_manager::SecureLinkServiceError;
-use windows_credential_manager_rs::CredentialManager;
-use crate::SECURE_LINK_APP_AUTH_TOKEN_KEY;
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
 
 pub struct SecureLinkWindowsService {

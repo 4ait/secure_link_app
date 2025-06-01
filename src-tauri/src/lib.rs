@@ -56,11 +56,8 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
                         let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
                         let service_log_file_path = r"E:\source\secure_link_app\service_log.txt";
 
-                        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token).expect("Failed to store token");
-
-                        let t = windows_credential_manager_rs::CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY).expect("Failed to load token");
-                        
-                        println!("Successfully loaded token {t}");
+                        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
+                            .expect("Failed to store token");
                         
                         secure_link_windows_service::SecureLinkWindowsService::new( 
                             "192.168.1.143", 

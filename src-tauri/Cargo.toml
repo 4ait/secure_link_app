@@ -16,12 +16,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 secure-link-windows-service_manager = ["secure_link_windows_service_manager"]
-windows-credential-manager_rs  = ["windows_credential_manager_rs"]
 secure-link-embedded-client = [ "secure_link_client"]
 
 windows = [
     "secure-link-windows-service_manager",
-    "windows-credential-manager_rs",
+    "windows_credential_manager_rs"
+
 ]
 
 default = ["windows"]

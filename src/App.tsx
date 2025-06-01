@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import {invoke} from "@tauri-apps/api/core";
 
 function App() {
+
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [connectionState, setConnectionState] = useState('notConnected');
+
+    const [error, setError] = useState(null);
+
     const [showTokenModal, setShowTokenModal] = useState(false);
     const [token, setToken] = useState('');
     const [savedToken, setSavedToken] = useState('');
@@ -178,22 +182,57 @@ function App() {
     }, []);
 
     const handleButtonClick = async () => {
+
         if (connectionState === "notConnected") {
+
             setConnectionState('connecting');
-            await invoke("start")
-            setConnectionState(
-                (await invoke("is_running")) ? 'connected' : 'notConnected'
-            )
+
+            try {
+
+                await invoke("start")
+
+                setConnectionState('connected');
+
+                setError(null)
+
+
+            } catch (e) {
+                setError(e.toString())
+                setConnectionState('notConnected');
+            }
+
         } else if (connectionState === "connected") {
-            await invoke("stop")
-            setConnectionState(
-                (await invoke("is_running")) ? 'connected' : 'notConnected'
-            )
+
+
+            try {
+
+                await invoke("stop")
+
+                setConnectionState('notConnected');
+
+                setError(null)
+
+
+            } catch (e) {
+                setError(e.toString())
+            }
+
+
         } else if (connectionState === "connecting") {
-            await invoke("stop")
-            setConnectionState(
-                (await invoke("is_running")) ? 'connected' : 'notConnected'
-            )
+
+            try {
+
+                await invoke("stop")
+
+                setConnectionState('notConnected');
+
+                setError(null)
+
+
+            } catch (e) {
+                setError(e.toString())
+            }
+
         }
     };
 
@@ -215,6 +254,9 @@ function App() {
 
     return (
         <div style={styles.container}>
+
+            <div style={{color: "white", position: "absolute", top: 20}}> {error}</div>
+
             <canvas
                 ref={canvasRef}
                 style={styles.canvas}
@@ -225,6 +267,28 @@ function App() {
                 onClick={() => setShowTokenModal(true)}
                 className="settings-button"
                 style={styles.settingsButton}
+            >
+                <span style={styles.settingsIcon}>⚙</span>
+            </button>
+
+            {/* Settings Button */}
+            <button
+                onClick={async () => {
+
+                    try {
+                        await invoke("reinstall_service")
+                        setError(null)
+
+                    } catch (e) {
+                        setError(e.toString())
+                    }
+
+                }}
+                className="reinstall service"
+                style={{
+                    ...styles.settingsButton,
+                    right: "70px"
+                }}
             >
                 <span style={styles.settingsIcon}>⚙</span>
             </button>

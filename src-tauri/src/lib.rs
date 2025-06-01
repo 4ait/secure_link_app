@@ -47,23 +47,17 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
                     #[cfg(feature = "secure-link-embedded-client")]
                     let client = {
                         let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
-                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
+                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "192.168.1.143", 6001)
                     };
                     #[cfg(feature = "secure-link-windows-service_manager")]
                     let client = {
 
 
-                        secure_link_windows_service_manager::uninstall_service();
-
-                        secure_link_windows_service_manager::install_service(
-                            r#"E:\source\secure_link_windows_service\target\debug\secure_link_windows_service.exe"#
-                        ).map_err(|err|err.to_string())?;
-
-                        let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
+                        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
 
                         CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token).expect("Failed to store token");
 
-                        secure_link_windows_service::SecureLinkWindowsService::new( "192.168.12.16", 6001)
+                        secure_link_windows_service::SecureLinkWindowsService::new( "192.168.1.143", 6001)
 
                     };
 
@@ -78,7 +72,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
     match secure_link_client.start().await {
         Ok(()) => Ok(()),
         Err(SecureLinkClientError::UnauthorizedError) => Err(format!("UnauthorizedError")),
-        Err(err) => Err(format!("{}", err)),
+        Err(err) => Err(format!("{:?}", err)),
     }
 
 }
@@ -91,13 +85,30 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
     };
 
     if let Some(secure_link_client) = maybe_client_clone {
-        secure_link_client.stop().await.map_err(|e| format!("{}", e))?;
+        secure_link_client.stop().await.map_err(|e| format!("{:?}", e))?;
     }
 
     Ok(())
 
 }
 
+#[tauri::command]
+async fn reinstall_service() -> Result<(), String> {
+
+
+    if secure_link_windows_service_manager::is_service_installed().map_err(|err|err.to_string())? {
+
+        secure_link_windows_service_manager::uninstall_service()
+            .map_err(|err|err.to_string())?;
+    }
+
+    secure_link_windows_service_manager::install_service(
+        r#"E:\source\secure_link_windows_service\target\debug\secure_link_windows_service.exe"#
+    ).map_err(|err|err.to_string())?;
+
+    Ok(())
+
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -109,7 +120,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start, stop, is_running])
+        .invoke_handler(tauri::generate_handler![start, stop, is_running, reinstall_service])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

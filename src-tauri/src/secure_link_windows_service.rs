@@ -1,5 +1,6 @@
-use std::error::Error;
+
 use async_trait::async_trait;
+use secure_link_windows_service_manager::SecureLinkServiceError;
 use windows_credential_manager_rs::CredentialManager;
 use crate::SECURE_LINK_APP_AUTH_TOKEN_KEY;
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
@@ -27,18 +28,60 @@ impl SecureLinkClient for SecureLinkWindowsService {
         let token = 
             CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY).expect("Failed to load token");
         
-        Ok(secure_link_windows_service_manager::start_service(
-            self.secure_link_server_host.as_str(),
-            self.secure_link_server_port,
-            &token
-        )?)
+        let service_log_file_path = r"E:\source\secure_link_app\service_log.txt";
+        
+        let start_service_result =
+            secure_link_windows_service_manager::start_service(
+                self.secure_link_server_host.as_str(),
+                self.secure_link_server_port,
+                &token,
+                &service_log_file_path
+            );
+        
+        match start_service_result { 
+            
+            Ok(()) => Ok(()),
+            Err(error) => {
+                
+                match error {
+                    SecureLinkServiceError::UnauthorizedError => {
+                        Err(SecureLinkClientError::UnauthorizedError)
+                    }
+                    SecureLinkServiceError::NetworkError(err) => {
+                        Err(SecureLinkClientError::NetworkError(err))
+                    }
+                    _ => Err(SecureLinkClientError::ServiceError(Box::new(error)))
+                    
+                }
+                
+            }
+            
+        }
     }
 
-    async fn stop(&self) -> Result<(), Box<dyn Error>> {
-        Ok(secure_link_windows_service_manager::stop_service()?)
+    async fn stop(&self) -> Result<(), SecureLinkClientError> {
+
+        match secure_link_windows_service_manager::stop_service() {
+
+            Ok(()) => Ok(()),
+            Err(error) => {
+                Err(SecureLinkClientError::ServiceError(Box::new(error)))
+            }
+
+        }
     }
 
-    async fn is_running(&self) -> Result<bool, Box<dyn Error>> {
-        secure_link_windows_service_manager::is_service_running()
+    async fn is_running(&self) -> Result<bool, SecureLinkClientError> {
+
+        match secure_link_windows_service_manager::is_service_running() {
+
+            Ok(is_running) => Ok(is_running),
+            Err(error) => {
+                Err(SecureLinkClientError::ServiceError(Box::new(error)))
+            }
+
+        }
+        
+       
     }
 }

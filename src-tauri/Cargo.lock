@@ -3594,8 +3594,9 @@ dependencies = [
 [[package]]
 name = "secure_link_windows_service_manager"
 version = "0.1.0"
-source = "git+https://github.com/4ait/secure_link_windows_service_manager#c69c8adb2eb544b086a40c35acdf1427150c2fef"
+source = "git+https://github.com/4ait/secure_link_windows_service_manager#c3ce629478d69e0ab905bdb60f11948121bb4fc9"
 dependencies = [
+ "thiserror 2.0.12",
  "windows-service",
  "windows-sys 0.59.0",
  "windows_credential_manager_rs",

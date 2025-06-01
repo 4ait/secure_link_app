@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
-use windows_credential_manager_rs::CredentialManager;
+
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
 
 mod secure_link_client;
@@ -46,7 +46,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
 
                     #[cfg(feature = "secure-link-embedded-client")]
                     let client = {
-                        let auth_token = "1:5hoZe5BoaCnfMkpbV_aVDyJfmfXreviP-4Jx9PDjByA";
+                        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
                         secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "192.168.1.143", 6001)
                     };
                     #[cfg(feature = "secure-link-windows-service_manager")]
@@ -55,7 +55,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
 
                         let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
 
-                        CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token).expect("Failed to store token");
+                        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token).expect("Failed to store token");
 
                         secure_link_windows_service::SecureLinkWindowsService::new( "192.168.1.143", 6001)
 
@@ -92,6 +92,7 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
 
 }
 
+#[cfg(feature = "secure-link-windows-service_manager")]
 #[tauri::command]
 async fn reinstall_service() -> Result<(), String> {
 
@@ -120,7 +121,12 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start, stop, is_running, reinstall_service])
+        .invoke_handler(tauri::generate_handler![
+            start, 
+            stop,
+            is_running, 
+            #[cfg(feature = "secure-link-windows-service_manager")] reinstall_service
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -24,7 +24,8 @@ windows = [
 
 ]
 
-default = ["windows"]
+#default = ["windows"]
+default = ["secure-link-embedded-client"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }

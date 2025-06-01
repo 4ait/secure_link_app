@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::sync::Arc;
 use async_trait::async_trait;
 use secure_link_client::{SecureLink, SecureLinkError};
@@ -37,11 +36,11 @@ impl SecureLinkClient for SecureLinkEmbeddedClient {
         self.inner.start().await
     }
 
-    async fn stop(&self) -> Result<(), Box<dyn Error>> {
+    async fn stop(&self) -> Result<(), SecureLinkClientError> {
         self.inner.stop().await
     }
 
-    async fn is_running(&self) -> Result<bool, Box<dyn Error>> {
+    async fn is_running(&self) -> Result<bool, SecureLinkClientError> {
         Ok(*self.inner.is_running.lock().unwrap())
     }
 }
@@ -128,7 +127,7 @@ impl SecureLinkEmbeddedClientInner {
         Ok(())
     }
 
-    async fn stop(&self) -> Result<(), Box<dyn Error>> {
+    async fn stop(&self) -> Result<(), SecureLinkClientError> {
 
         // Send shutdown signal
         let sender = {

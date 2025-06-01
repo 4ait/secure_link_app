@@ -5,8 +5,11 @@ use async_trait::async_trait;
 pub enum SecureLinkClientError {
     #[error("Unauthorized")]
     UnauthorizedError,
-    #[error("ServiceError")]
+   
+    #[cfg(feature = "secure-link-windows-service_manager")] 
+    #[error("ServiceError")] 
     ServiceError(Box<dyn std::error::Error>),
+    
     #[error("NetworkError")]
     NetworkError(Box<dyn std::error::Error>)
 }

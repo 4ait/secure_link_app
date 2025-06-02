@@ -47,7 +47,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
                     #[cfg(feature = "secure-link-embedded-client")]
                     let client = {
                         let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
-                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "192.168.1.143", 6001)
+                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
                     };
                     #[cfg(feature = "secure-link-windows-service_manager")]
                     let client = {
@@ -102,8 +102,7 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
 #[cfg(feature = "secure-link-windows-service_manager")]
 #[tauri::command]
 async fn reinstall_service() -> Result<(), String> {
-
-
+    
     if secure_link_windows_service_manager::is_service_installed().map_err(|err|err.to_string())? {
 
         secure_link_windows_service_manager::uninstall_service()

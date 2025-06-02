@@ -248,7 +248,20 @@ function App() {
 
     return (
         <div className="app-container">
+
             <div className="error-display">{error}</div>
+
+            <div
+                data-tauri-drag-region
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    height: "100px",
+                    width: "100%",
+                    backgroundColor: "transparent"
+                }}
+            ></div>
 
             <canvas
                 ref={canvasRef}

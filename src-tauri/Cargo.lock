@@ -3554,6 +3554,7 @@ name = "secure_link_app"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "log",
  "secure_link_client",
  "secure_link_windows_service_manager",
  "serde",

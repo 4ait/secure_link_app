@@ -13,6 +13,60 @@ function App() {
     const [showContextMenu, setShowContextMenu] = useState<boolean>(false);
     const [token, setToken] = useState<string>('');
     const [savedToken, setSavedToken] = useState<string>('');
+    const pollingIntervalRef = useRef<number | null>(null);
+
+    // Polling function to check service status
+    const checkServiceStatus = async (): Promise<void> => {
+        try {
+            const isRunning: boolean = await invoke("is_running");
+
+            // Only update state if there's a mismatch to avoid unnecessary re-renders
+            if (isRunning && connectionState === 'notConnected') {
+                setConnectionState('connected');
+                setError(null);
+            } else if (!isRunning && connectionState === 'connected') {
+                setConnectionState('notConnected');
+                // Optionally set an error message when service stops unexpectedly
+                // setError('Service disconnected unexpectedly');
+            }
+        } catch (e) {
+            console.error('Failed to check service status:', e);
+            // If we can't check status and we think we're connected, assume disconnected
+            if (connectionState === 'connected') {
+                setConnectionState('notConnected');
+                setError('Lost connection to service');
+            }
+        }
+    };
+
+    // Start polling when component mounts
+    useEffect(() => {
+        // Initial status check
+        checkServiceStatus();
+
+        // Start polling every 2 seconds
+        pollingIntervalRef.current = setInterval(checkServiceStatus, 500);
+
+        // Cleanup on unmount
+        return () => {
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+        };
+    }, [connectionState]); // Re-run when connectionState changes
+
+    useEffect(() => {
+
+        (async () => {
+
+            const token: string | null = await invoke("get_auth_token");
+
+            token && setToken(token)
+
+        })()
+
+    }, []);
 
     // Close context menu when clicking outside
     useEffect(() => {
@@ -272,8 +326,11 @@ function App() {
     };
 
     const handleTokenSave = async (): Promise<void> => {
+
+        console.log(token)
+
         try {
-            await invoke("update_auth_token", { auth_token: token });
+            await invoke("update_auth_token", { authToken: token });
             setSavedToken(token);
             setShowTokenModal(false);
             setError(null);

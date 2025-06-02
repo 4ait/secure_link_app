@@ -17,15 +17,15 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 secure-link-windows-service_manager = ["secure_link_windows_service_manager"]
 secure-link-embedded-client = [ "secure_link_client"]
+windows-credential-manager = ["windows_credential_manager_rs"]
 
 windows = [
     "secure-link-windows-service_manager",
-    "windows_credential_manager_rs"
-
+    "windows-credential-manager"
 ]
 
-default = ["windows"]
-#default = ["secure-link-embedded-client"]
+#default = ["windows"]
+default = ["secure-link-embedded-client"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
@@ -38,6 +38,7 @@ secure_link_windows_service_manager = { git = "https://github.com/4ait/secure_li
 windows_credential_manager_rs = { git = "https://github.com/4ait/windows_credential_manager_rs", optional = true }
 async-trait = "0.1.88"
 thiserror = "2.0.12"
+log = "0.4.27"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

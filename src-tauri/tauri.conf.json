@@ -38,7 +38,8 @@
     "windows": {
       "wix": {
         "fragmentPaths": ["uninstall_service.wxs"],
-        "componentRefs": ["ServiceManagementUninstall"]
+        "componentRefs": ["ServiceManagementUninstall"],
+        "template": "main.wxs"
       }
     }
   }

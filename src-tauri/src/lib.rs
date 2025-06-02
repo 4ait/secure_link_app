@@ -259,9 +259,7 @@ fn store_auth_token(state: &State<'_, AppData>, auth_token: String) -> Result<()
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-
-
-
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
@@ -270,14 +268,15 @@ pub fn run() {
             let exe_dir = exe_path.parent().ok_or("Failed to get parent directory of exe")?.to_path_buf();
 
 
-            if !secure_link_windows_service_manager::is_service_installed()? {
+            #[cfg(feature = "secure-link-windows-service_manager")]{
+                if !secure_link_windows_service_manager::is_service_installed()? {
 
-                secure_link_windows_service_manager::install_service(
-                    exe_dir.join("secure_link_windows_service.exe").to_str().unwrap()
-                )?;
+                    secure_link_windows_service_manager::install_service(
+                        exe_dir.join("secure_link_windows_service.exe").to_str().unwrap()
+                    )?;
 
+                }
             }
-
 
             let app_data_dir = app.path().app_data_dir()?;
 

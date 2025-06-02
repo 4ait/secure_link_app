@@ -3,12 +3,57 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    
     // Собираем сервис только на Windows
     #[cfg(target_os = "windows")]
     build_service();
+    
+    // Встраиваем манифест на Windows
+    #[cfg(target_os = "windows")]
+    build_tauri_with_embed_admin_manifest();
 
-    // Запускаем tauri build после сборки сервиса
-    tauri_build::build();
+    #[cfg(not(target_os = "windows"))]
+    {
+        tauri_build::build();
+    }
+
+}
+
+#[cfg(target_os = "windows")]
+fn build_tauri_with_embed_admin_manifest() {
+    
+    let mut windows = tauri_build::WindowsAttributes::new();
+
+    let mut windows = tauri_build::WindowsAttributes::new();
+    windows = windows.app_manifest(
+        r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+        <requestedPrivileges>
+            <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+        </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>
+"#,
+    );
+
+    tauri_build::try_build(
+        tauri_build::Attributes::new().windows_attributes(windows)
+    ).expect("failed to run build script");
+    
 }
 
 #[cfg(target_os = "windows")]
@@ -16,25 +61,26 @@ fn build_service() {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let service_dir = format!("{}/../secure_link_windows_service", manifest_dir);
 
-    // Проверяем, существует ли директория сервиса
-    if !Path::new(&service_dir).exists() {
-        println!("cargo:warning=Service directory not found: {}", service_dir);
-        // Создаем пустой файл-заглушку для development
-        let target_path = format!("{}/target/release/secure_link_windows_service.exe", manifest_dir);
-        std::fs::create_dir_all(format!("{}/target/release", manifest_dir))
-            .expect("Failed to create target directory");
-        std::fs::write(&target_path, b"").expect("Failed to create placeholder file");
-        return;
-    }
-
     println!("cargo:rerun-if-changed={}/src", service_dir);
     println!("cargo:rerun-if-changed={}/Cargo.toml", service_dir);
 
+    // Создаем команду
+    let mut cmd = Command::new("cargo");
+    cmd.args(&["build", "--release"])
+        .current_dir(&service_dir);
+
+    // Добавляем target только если он установлен
+    let target_opt = if let Ok(target) = env::var("TARGET") {
+        println!("cargo:warning=Building service for target: {}", target);
+        cmd.arg("--target").arg(&target);
+        Some(target)
+    } else {
+        println!("cargo:warning=Building service for default target");
+        None
+    };
+
     // Собираем сервис
-    let output = Command::new("cargo")
-        .args(&["build", "--release"])
-        .current_dir(&service_dir)
-        .output()
+    let output = cmd.output()
         .expect("Failed to execute cargo build for service");
 
     if !output.status.success() {
@@ -45,8 +91,14 @@ fn build_service() {
         );
     }
 
-    // Определяем пути
-    let service_exe_path = format!("{}/target/release/secure_link_windows_service.exe", service_dir);
+    // Определяем пути с учетом target
+    let service_exe_path = 
+        if let Some(target) = target_opt {
+            format!("{}/target/{}/release/secure_link_windows_service.exe", service_dir, target)
+        } else {
+            format!("{}/target/release/secure_link_windows_service.exe", service_dir)
+        };
+    
     let target_dir = format!("{}/target/release", manifest_dir);
     let target_exe_path = format!("{}/secure_link_windows_service.exe", target_dir);
 

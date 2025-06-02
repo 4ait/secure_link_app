@@ -71,10 +71,8 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
                     };
                     #[cfg(feature = "secure-link-windows-service_manager")]
                     let client = {
-
-
+                        
                         let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
-                        let service_log_file_path = r"E:\source\secure_link_app\service_log.txt";
 
                         windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
                             .expect("Failed to store token");
@@ -83,7 +81,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
                             "192.168.1.143", 
                             6001, 
                             auth_token,
-                            service_log_file_path
+                            &format!("{}", &state.secure_link_service_log_file_path)
                         )
 
                     };

@@ -20,6 +20,9 @@ function App() {
         try {
             const isRunning: boolean = await invoke("is_running");
 
+            console.log(isRunning)
+
+
             // Only update state if there's a mismatch to avoid unnecessary re-renders
             if (isRunning && connectionState === 'notConnected') {
                 setConnectionState('connected');

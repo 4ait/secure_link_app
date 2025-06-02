@@ -23,9 +23,10 @@ struct AppData {
 #[tauri::command]
 async fn is_running(state: State<'_, AppData>) -> Result<bool, String> {
 
-    let maybe_client = {
-        state.secure_link_client.lock().unwrap().clone()
-    };
+    let maybe_client = 
+        ensure_secure_link_client_created(&state)
+            .await
+            .map_err(|e| format!("{:?}", e))?;
 
     if let Some(secure_link_client_locked) = maybe_client  {
         Ok(secure_link_client_locked.is_running().await.map_err(|e| format!("{}", e))?)
@@ -57,7 +58,8 @@ async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
 
 async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
 
-    let host = "127.0.0.1";
+    //let host = "127.0.0.1";
+    let host = "192.168.12.16";
     let port = 6001;
 
 

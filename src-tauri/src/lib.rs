@@ -17,7 +17,9 @@ struct AppData {
     #[cfg(feature = "secure-link-windows-service_manager")]
     secure_link_service_log_file_path: std::path::PathBuf,
     #[cfg(not(feature = "windows-credential-manager"))]
-    auth_token_file_path: std::path::PathBuf
+    auth_token_file_path: std::path::PathBuf,
+    secure_link_server_host: String,
+    secure_link_server_port: u16,
 }
 
 #[tauri::command]
@@ -58,11 +60,6 @@ async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
 
 async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
 
-    //let host = "127.0.0.1";
-    let host = "192.168.12.16";
-    let port = 6001;
-
-
     let auth_token =
         match load_auth_token(state)? {
             None => { return Ok(None)}
@@ -79,15 +76,15 @@ async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result
 
                 #[cfg(feature = "secure-link-embedded-client")]
                 let client = {
-                    secure_link_embedded_client::SecureLinkEmbeddedClient::new(&auth_token, host, port)
+                    secure_link_embedded_client::SecureLinkEmbeddedClient::new(&auth_token, &state.secure_link_server_host, state.secure_link_server_port)
                 };
 
                 #[cfg(feature = "secure-link-windows-service_manager")]
                 let client = {
 
                     secure_link_windows_service::SecureLinkWindowsService::new(
-                        host,
-                        port,
+                        &state.secure_link_server_host,
+                        state.secure_link_server_port,
                         &auth_token,
                         &state.secure_link_service_log_file_path.to_str().unwrap()
                     )
@@ -259,7 +256,7 @@ fn store_auth_token(state: &State<'_, AppData>, auth_token: String) -> Result<()
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
@@ -291,6 +288,13 @@ pub fn run() {
                     exe_dir
                 };
 
+
+            let secure_link_server_host = env!("SECURE_LINK_SERVER_HOST", "SECURE_LINK_SERVER_HOST not set");
+            
+            let secure_link_server_port = env!("SECURE_LINK_SERVER_PORT", "SECURE_LINK_SERVER_PORT not set").parse::<u16>()
+                .expect("Invalid SECURE_LINK_SERVER_PORT number");
+
+
             app.manage(AppData {
                 secure_link_client: Mutex::new(None),
 
@@ -306,6 +310,8 @@ pub fn run() {
                     app_data_dir.join(&auth_token_file)
 
                 },
+                secure_link_server_host: secure_link_server_host.to_string(),
+                secure_link_server_port
             });
 
             Ok(())

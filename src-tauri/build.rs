@@ -3,6 +3,9 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+
+    println!("cargo:rustc-env=SECURE_LINK_SERVER_HOST=192.168.12.16");
+    println!("cargo:rustc-env=SECURE_LINK_SERVER_PORT=6001");
     
     // Собираем сервис только на Windows
     #[cfg(target_os = "windows")]
@@ -21,33 +24,31 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 fn build_tauri_with_embed_admin_manifest() {
-    
-    let mut windows = tauri_build::WindowsAttributes::new();
 
     let mut windows = tauri_build::WindowsAttributes::new();
     windows = windows.app_manifest(
-        r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <dependency>
-    <dependentAssembly>
-      <assemblyIdentity
-        type="win32"
-        name="Microsoft.Windows.Common-Controls"
-        version="6.0.0.0"
-        processorArchitecture="*"
-        publicKeyToken="6595b64144ccf1df"
-        language="*"
-      />
-    </dependentAssembly>
-  </dependency>
-  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-    <security>
-        <requestedPrivileges>
-            <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
-        </requestedPrivileges>
-    </security>
-  </trustInfo>
-</assembly>
-"#,
+r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+          <dependency>
+            <dependentAssembly>
+              <assemblyIdentity
+                type="win32"
+                name="Microsoft.Windows.Common-Controls"
+                version="6.0.0.0"
+                processorArchitecture="*"
+                publicKeyToken="6595b64144ccf1df"
+                language="*"
+              />
+            </dependentAssembly>
+          </dependency>
+          <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+            <security>
+                <requestedPrivileges>
+                    <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+                </requestedPrivileges>
+            </security>
+          </trustInfo>
+        </assembly>
+    "#,
     );
 
     tauri_build::try_build(

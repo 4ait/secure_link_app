@@ -82,7 +82,9 @@
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
 
-        <CustomAction Id="LaunchApplication" Impersonate="yes" FileKey="Path" ExeCommand="[LAUNCHAPPARGS]" Return="asyncNoWait" />
+       <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Execute="immediate" Return="check" Impersonate="yes"/>
+       <Property Id="WixShellExecTarget" Value="[#Path]"/>
+       <Property Id="WixShellExecTargetArguments" Value="[LAUNCHAPPARGS]"/>
 
         <UI>
             <!-- launch app checkbox -->

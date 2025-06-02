@@ -92,6 +92,8 @@ impl SecureLinkEmbeddedClientInner {
             Ok(link) => link,
             Err(err) => {
 
+                *is_running_clone.lock().unwrap() = false;
+                
                 return match err {
                     SecureLinkError::UnauthorizedError => {
                         Err(SecureLinkClientError::UnauthorizedError)

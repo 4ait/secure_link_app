@@ -53,36 +53,23 @@ async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
     }
 }
 
-fn create_secure_link_client(state: &State<'_, AppData>) -> Arc<dyn SecureLinkClient + Send + Sync> {
+async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
 
-    #[cfg(feature = "secure-link-embedded-client")]
-    let client = {
-        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
-        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
-    };
-    #[cfg(feature = "secure-link-windows-service_manager")]
-    let client = {
+    let host = "127.0.0.1";
+    let port = 6001;
 
-        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
+    //
+    //         windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
+    //             .expect("Failed to store token");
 
-        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
-            .expect("Failed to store token");
+    let auth_token =
 
-        secure_link_windows_service::SecureLinkWindowsService::new(
-            "192.168.1.143",
-            6001,
-            auth_token,
-            &state.secure_link_service_log_file_path.to_str().unwrap()
-        )
+        match windows_credential_manager_rs::CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY) {
+            Ok(Some(auth_token)) => auth_token,
+            Ok(None) => return Ok(None),
+            Err(err) => return Err(err)
+        };
 
-    };
-
-    Arc::new(client)
-
-}
-
-#[tauri::command]
-async fn start(state: State<'_, AppData>) -> Result<(), String> {
 
     let secure_link_client = {
 
@@ -92,19 +79,75 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
             Some(secure_link_client) => secure_link_client.clone(),
             None => {
 
-                let client = create_secure_link_client(&state);
+                #[cfg(feature = "secure-link-embedded-client")]
+                let client = {
+                    secure_link_embedded_client::SecureLinkEmbeddedClient::new(&auth_token, host, port)
+                };
 
-                *secure_link_client_locked = Some(client.clone());
-                client
+                #[cfg(feature = "secure-link-windows-service_manager")]
+                let client = {
+
+                    secure_link_windows_service::SecureLinkWindowsService::new(
+                        host,
+                        port,
+                        &auth_token,
+                        &state.secure_link_service_log_file_path.to_str().unwrap()
+                    )
+
+                };
+
+                let client_arc = Arc::new(client);
+
+                *secure_link_client_locked = Some(client_arc.clone());
+
+                client_arc
             }
         }
     };
 
+    Ok(Some(secure_link_client))
 
-    match secure_link_client.start().await {
-        Ok(()) => Ok(()),
-        Err(SecureLinkClientError::UnauthorizedError) => Err(format!("UnauthorizedError")),
-        Err(err) => Err(format!("{:?}", err)),
+}
+
+async fn reinitialize_secure_link_client(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
+
+    let current_client = {
+        state.secure_link_client.lock().unwrap().clone()
+    };
+
+    if let Some(client) = current_client {
+        client.stop().await?;
+    }
+
+    {
+        *state.secure_link_client.lock().unwrap() = None;
+    };
+
+    Ok(ensure_secure_link_client_created(state).await?)
+
+
+}
+
+#[tauri::command]
+async fn start(state: State<'_, AppData>) -> Result<(), String> {
+
+    let secure_link_client =
+        ensure_secure_link_client_created(&state).await
+            .map_err(|e| format!("{:?}", e))?;
+
+
+    if let Some(secure_link_client) = secure_link_client {
+
+        match secure_link_client.start().await {
+            Ok(()) => Ok(()),
+            Err(SecureLinkClientError::UnauthorizedError) => Err(format!("UnauthorizedError")),
+            Err(err) => Err(format!("{:?}", err)),
+        }
+
+    }
+    else
+    {
+       Err(format!("No auth token"))
     }
 
 }
@@ -121,6 +164,43 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
     }
 
     Ok(())
+
+}
+
+#[tauri::command]
+async fn update_auth_token(state: State<'_, AppData>, auth_token: String) -> Result<(), String> {
+
+    windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, &auth_token)
+        .expect("Failed to store token");
+
+    let secure_link_client =
+        reinitialize_secure_link_client(&state).await
+            .map_err(|e| e.to_string())?;
+
+    if let Some(secure_link_client) = secure_link_client {
+
+        match secure_link_client.start().await {
+            Ok(()) => Ok(()),
+            Err(SecureLinkClientError::UnauthorizedError) => Err(format!("UnauthorizedError")),
+            Err(err) => Err(format!("{:?}", err)),
+        }
+
+    }
+    else
+    {
+        Err(format!("No auth token"))
+    }
+
+}
+
+#[tauri::command]
+async fn get_auth_token() -> Result<Option<String>, String> {
+    
+    match windows_credential_manager_rs::CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY) {
+        Ok(Some(auth_token)) => Ok(Some(auth_token)),
+        Ok(None) => Ok(None),
+        Err(err) => Err(err).map_err(|e| format!("{:?}", e))
+    }
 
 }
 
@@ -167,6 +247,7 @@ pub fn run() {
             start, 
             stop,
             is_running,
+            update_auth_token,
             #[cfg(feature = "secure-link-windows-service_manager")] get_service_log,
             #[cfg(feature = "secure-link-windows-service_manager")] reinstall_service
         ])

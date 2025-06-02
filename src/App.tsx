@@ -6,11 +6,30 @@ type ConnectionState = 'notConnected' | 'connecting' | 'connected';
 
 function App() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const contextMenuRef = useRef<HTMLDivElement | null>(null);
     const [connectionState, setConnectionState] = useState<ConnectionState>('notConnected');
     const [error, setError] = useState<string | null>(null);
     const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
+    const [showContextMenu, setShowContextMenu] = useState<boolean>(false);
     const [token, setToken] = useState<string>('');
     const [savedToken, setSavedToken] = useState<string>('');
+
+    // Close context menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+                setShowContextMenu(false);
+            }
+        };
+
+        if (showContextMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showContextMenu]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -221,11 +240,46 @@ function App() {
         }
     };
 
-    const handleTokenSave = (): void => {
-        setSavedToken(token);
-        setShowTokenModal(false);
-        // Здесь можно добавить сохранение токена через invoke
-        // await invoke("save_token", { token });
+    const handleSettingsClick = (): void => {
+        setShowContextMenu(!showContextMenu);
+    };
+
+    const handleTokenMenuClick = (): void => {
+        setShowTokenModal(true);
+        setShowContextMenu(false);
+    };
+
+    const handleServiceLogClick = async (): Promise<void> => {
+        setShowContextMenu(false);
+
+        try {
+            // Get service log from backend
+            const logData = await invoke("get_service_log") as string;
+
+            // Create blob and download
+            const blob = new Blob([logData], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `service-log-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            setError('Failed to export service log');
+        }
+    };
+
+    const handleTokenSave = async (): Promise<void> => {
+        try {
+            await invoke("save_token", { token });
+            setSavedToken(token);
+            setShowTokenModal(false);
+            setError(null);
+        } catch (e) {
+            setError(String(e));
+        }
     };
 
     const getButtonText = (): string => {
@@ -248,8 +302,6 @@ function App() {
 
     return (
         <div className="app-container">
-
-
             <div className="error-display">{error}</div>
 
             <canvas
@@ -257,13 +309,33 @@ function App() {
                 className="app-canvas"
             />
 
-            {/* Settings Button */}
-            <button
-                onClick={() => setShowTokenModal(true)}
-                className="settings-button"
-            >
-                <span className="settings-icon">⚙</span>
-            </button>
+            {/* Settings Button with Context Menu */}
+            <div className="settings-container">
+                <button
+                    onClick={handleSettingsClick}
+                    className="settings-button"
+                >
+                    <span className="settings-icon">⚙</span>
+                </button>
+
+                {/* Context Menu */}
+                {showContextMenu && (
+                    <div ref={contextMenuRef} className="context-menu">
+                        <button
+                            onClick={handleTokenMenuClick}
+                            className="context-menu-item"
+                        >
+                            API Token
+                        </button>
+                        <button
+                            onClick={handleServiceLogClick}
+                            className="context-menu-item"
+                        >
+                            Service Log
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {/* Main Button */}
             <button

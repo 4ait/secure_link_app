@@ -13,7 +13,9 @@ mod secure_link_embedded_client;
 pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-key";
 
 struct AppData {
-    secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>
+    secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>,
+    #[cfg(feature = "secure-link-windows-service_manager")]
+    secure_link_service_log_file_path: std::path::PathBuf
 }
 
 #[tauri::command]
@@ -31,6 +33,24 @@ async fn is_running(state: State<'_, AppData>) -> Result<bool, String> {
         Ok(false)
     }
 
+}
+
+#[cfg(feature = "secure-link-windows-service_manager")]
+#[tauri::command]
+async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
+
+    let log_file_path = state.secure_link_service_log_file_path.clone();
+
+    // Если файл не существует, возвращаем пустую строку
+    if !log_file_path.exists() {
+        return Ok("".to_string());
+    }
+
+    // Читаем содержимое файла логов
+    match std::fs::read_to_string(log_file_path) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("Не удалось прочитать файл логов: {}", e))
+    }
 }
 
 #[tauri::command]
@@ -122,15 +142,27 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
+
+
             app.manage(AppData {
-                secure_link_client: Mutex::new(None)
+                secure_link_client: Mutex::new(None),
+                #[cfg(feature = "secure-link-windows-service_manager")] secure_link_service_log_file_path: {
+
+                    let app_data_dir = app.path().app_data_dir()?;
+                    let service_log_file_name = "secure_link_service.log";
+                    app_data_dir.join(&service_log_file_name)
+
+                },
             });
+
             Ok(())
+
         })
         .invoke_handler(tauri::generate_handler![
             start, 
             stop,
-            is_running, 
+            is_running,
+            #[cfg(feature = "secure-link-windows-service_manager")] get_service_log,
             #[cfg(feature = "secure-link-windows-service_manager")] reinstall_service
         ])
         .run(tauri::generate_context!())

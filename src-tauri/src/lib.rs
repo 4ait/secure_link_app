@@ -53,6 +53,34 @@ async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
     }
 }
 
+fn create_secure_link_client(state: &State<'_, AppData>) -> Arc<dyn SecureLinkClient + Send + Sync> {
+
+    #[cfg(feature = "secure-link-embedded-client")]
+    let client = {
+        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
+        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
+    };
+    #[cfg(feature = "secure-link-windows-service_manager")]
+    let client = {
+
+        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
+
+        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
+            .expect("Failed to store token");
+
+        secure_link_windows_service::SecureLinkWindowsService::new(
+            "192.168.1.143",
+            6001,
+            auth_token,
+            &state.secure_link_service_log_file_path.to_str().unwrap()
+        )
+
+    };
+
+    Arc::new(client)
+
+}
+
 #[tauri::command]
 async fn start(state: State<'_, AppData>) -> Result<(), String> {
 
@@ -64,31 +92,10 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
             Some(secure_link_client) => secure_link_client.clone(),
             None => {
 
-                    #[cfg(feature = "secure-link-embedded-client")]
-                    let client = {
-                        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
-                        secure_link_embedded_client::SecureLinkEmbeddedClient::new(auth_token, "127.0.0.1", 6001)
-                    };
-                    #[cfg(feature = "secure-link-windows-service_manager")]
-                    let client = {
-                        
-                        let auth_token = "1:RkPDgHVK85x2ycGJmpsqVoiSDMtIhS588iydbKIJqYU";
+                let client = create_secure_link_client(&state);
 
-                        windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, auth_token)
-                            .expect("Failed to store token");
-                        
-                        secure_link_windows_service::SecureLinkWindowsService::new( 
-                            "192.168.1.143", 
-                            6001, 
-                            auth_token,
-                            &format!("{}", &state.secure_link_service_log_file_path)
-                        )
-
-                    };
-
-                let client_arc = Arc::new(client);
-                *secure_link_client_locked = Some(client_arc.clone());
-                client_arc
+                *secure_link_client_locked = Some(client.clone());
+                client
             }
         }
     };

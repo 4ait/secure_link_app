@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "resources": {
+      "target/release/secure_link_windows_service.exe": "secure_link_windows_service.exe"
+    },
+    "windows": {
+      "wix": {
+        "fragmentPaths": ["uninstall_service.wxs"],
+        "componentRefs": ["ServiceManagementUninstall"],
+        "template": "main.wxs"
+      }
+    }
+  }
+}

@@ -32,12 +32,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "target/release/secure_link_windows_service.exe"
-    ],
+    "resources": {
+      "target/release/secure_link_windows_service.exe": "secure_link_windows_service.exe"
+    },
     "windows": {
       "wix": {
-        "template": "../installer.wxs"
+        "fragmentPaths": ["uninstall_service.wxs"],
+        "componentRefs": ["ServiceManagementUninstall"]
       }
     }
   }

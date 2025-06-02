@@ -259,10 +259,25 @@ fn store_auth_token(state: &State<'_, AppData>, auth_token: String) -> Result<()
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    
+
+
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
+
+            let exe_path = std::env::current_exe()?;
+            let exe_dir = exe_path.parent().ok_or("Failed to get parent directory of exe")?.to_path_buf();
+
+
+            if !secure_link_windows_service_manager::is_service_installed()? {
+
+                secure_link_windows_service_manager::install_service(
+                    exe_dir.join("secure_link_windows_service.exe").to_str().unwrap()
+                )?;
+
+            }
+
 
             let app_data_dir = app.path().app_data_dir()?;
 
@@ -274,9 +289,7 @@ pub fn run() {
                 {
                     warn!("appdata dir not exists. using current binary location as appdata, ok for dev env.");
 
-                    let exe_path = std::env::current_exe()?;
-                    exe_path.parent().ok_or("Failed to get parent directory of exe")?.to_path_buf()
-
+                    exe_dir
                 };
 
             app.manage(AppData {

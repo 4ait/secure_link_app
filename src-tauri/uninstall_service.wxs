@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+   <DirectoryRef Id="INSTALLDIR">
+     <Component Id="ServiceManagementUninstall" Guid="12345678-1234-1234-1234-123456789ABC">
+       <ServiceControl Id="SecureLinkServiceControl"
+                       Name="Secure Link Service"
+                       Stop="uninstall"
+                       Remove="uninstall"
+                       Wait="yes" />
+
+       <RegistryValue Root="HKCU"
+                      Key="Software\SecureLink"
+                      Name="ServiceManaged"
+                      Type="integer"
+                      Value="1"
+                      KeyPath="yes" />
+     </Component>
+   </DirectoryRef>
+  </Fragment>
+</Wix>

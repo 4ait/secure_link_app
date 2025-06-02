@@ -1,16 +1,13 @@
-use std::process::Command;
-use std::env;
-use std::path::Path;
 
 fn main() {
 
     println!("cargo:rustc-env=SECURE_LINK_SERVER_HOST=192.168.12.16");
     println!("cargo:rustc-env=SECURE_LINK_SERVER_PORT=6001");
-    
+
     // Собираем сервис только на Windows
     #[cfg(target_os = "windows")]
     build_service();
-    
+
     // Встраиваем манифест на Windows
     #[cfg(target_os = "windows")]
     build_tauri_with_embed_admin_manifest();
@@ -54,24 +51,24 @@ r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
     tauri_build::try_build(
         tauri_build::Attributes::new().windows_attributes(windows)
     ).expect("failed to run build script");
-    
+
 }
 
 #[cfg(target_os = "windows")]
 fn build_service() {
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let service_dir = format!("{}/../secure_link_windows_service", manifest_dir);
 
     println!("cargo:rerun-if-changed={}/src", service_dir);
     println!("cargo:rerun-if-changed={}/Cargo.toml", service_dir);
 
     // Создаем команду
-    let mut cmd = Command::new("cargo");
+    let mut cmd = std::process::Command::new("cargo");
     cmd.args(&["build", "--release"])
         .current_dir(&service_dir);
 
     // Добавляем target только если он установлен
-    let target_opt = if let Ok(target) = env::var("TARGET") {
+    let target_opt = if let Ok(target) = std::env::var("TARGET") {
         println!("cargo:warning=Building service for target: {}", target);
         cmd.arg("--target").arg(&target);
         Some(target)
@@ -93,13 +90,13 @@ fn build_service() {
     }
 
     // Определяем пути с учетом target
-    let service_exe_path = 
+    let service_exe_path =
         if let Some(target) = target_opt {
             format!("{}/target/{}/release/secure_link_windows_service.exe", service_dir, target)
         } else {
             format!("{}/target/release/secure_link_windows_service.exe", service_dir)
         };
-    
+
     let target_dir = format!("{}/target/release", manifest_dir);
     let target_exe_path = format!("{}/secure_link_windows_service.exe", target_dir);
 
@@ -108,7 +105,7 @@ fn build_service() {
         .expect("Failed to create target directory");
 
     // Проверяем существование исходного файла
-    if !Path::new(&service_exe_path).exists() {
+    if !std::path::Path::new(&service_exe_path).exists() {
         panic!("Service executable not found at: {}", service_exe_path);
     }
 

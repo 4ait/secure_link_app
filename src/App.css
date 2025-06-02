@@ -37,7 +37,7 @@
 .error-display {
   color: white;
   position: absolute;
-  top: 20px;
+  bottom: 100px;
   z-index: 2;
 }
 

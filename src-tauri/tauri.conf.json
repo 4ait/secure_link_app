@@ -15,8 +15,7 @@
         "title": "secure_link_app",
         "width": 400,
         "height": 600,
-        "resizable": false,
-        "decorations": false
+        "resizable": false
       }
     ],
     "security": {

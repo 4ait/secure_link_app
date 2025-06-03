@@ -14,6 +14,13 @@ pub enum SecureLinkClientError {
     NetworkError(Box<dyn std::error::Error>)
 }
 
+#[derive(Debug)]
+pub enum SecureLinkClientState {
+    Running,
+    Pending,
+    Stopped
+}
+
 #[async_trait]
 
 pub trait SecureLinkClient: Send + Sync {
@@ -22,6 +29,6 @@ pub trait SecureLinkClient: Send + Sync {
 
     async fn stop(&self) -> Result<(), SecureLinkClientError>;
 
-    async fn is_running(&self) -> Result<bool, SecureLinkClientError>;
+    async fn status(&self) -> Result<SecureLinkClientState, SecureLinkClientError>;
 
 }

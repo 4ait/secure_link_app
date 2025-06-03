@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 use log::warn;
-use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
+use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -23,7 +23,7 @@ struct AppData {
 }
 
 #[tauri::command]
-async fn is_running(state: State<'_, AppData>) -> Result<bool, String> {
+async fn current_state(state: State<'_, AppData>) -> Result<String, String> {
 
     let maybe_client = 
         ensure_secure_link_client_created(&state)
@@ -31,11 +31,25 @@ async fn is_running(state: State<'_, AppData>) -> Result<bool, String> {
             .map_err(|e| format!("{:?}", e))?;
 
     if let Some(secure_link_client_locked) = maybe_client  {
-        Ok(secure_link_client_locked.is_running().await.map_err(|e| format!("{}", e))?)
+
+        let status = secure_link_client_locked.status().await.map_err(|e| format!("{:?}", e))?;
+
+        match status {
+            SecureLinkClientState::Running => {
+                Ok("Running".to_string())
+            }
+            SecureLinkClientState::Pending => {
+                Ok("Pending".to_string())
+            }
+            SecureLinkClientState::Stopped => {
+                Ok("Stopped".to_string())
+            }
+        }
+
     }
     else
     {
-        Ok(false)
+        Ok("Stopped".to_string())
     }
 
 }
@@ -259,6 +273,13 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .setup(move |app| {
 
             let exe_path = std::env::current_exe()?;
@@ -320,7 +341,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start, 
             stop,
-            is_running,
+            current_state,
             update_auth_token,
             get_auth_token,
             #[cfg(feature = "secure-link-windows-service_manager")] get_service_log,

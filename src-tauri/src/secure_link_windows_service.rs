@@ -1,8 +1,7 @@
 
 use async_trait::async_trait;
-use secure_link_windows_service_manager::SecureLinkServiceError;
-use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
-
+use secure_link_windows_service_manager::{SecureLinkServiceError, ServiceState};
+use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 pub struct SecureLinkWindowsService {
     secure_link_server_host: String,
     secure_link_server_port: u16,
@@ -68,11 +67,22 @@ impl SecureLinkClient for SecureLinkWindowsService {
         }
     }
 
-    async fn is_running(&self) -> Result<bool, SecureLinkClientError> {
+    async fn status(&self) -> Result<SecureLinkClientState, SecureLinkClientError> {
 
-        match secure_link_windows_service_manager::is_service_running() {
+        match secure_link_windows_service_manager::query_state() {
+            
+            Ok(state) => {
+                
+                match state {
 
-            Ok(is_running) => Ok(is_running),
+                    ServiceState::Running => Ok(SecureLinkClientState::Running),
+                    ServiceState::StartPending => Ok(SecureLinkClientState::Pending),
+                    ServiceState::Stopped => Ok(SecureLinkClientState::Stopped),
+                    _ => Ok(SecureLinkClientState::Pending)
+                    
+                }
+                
+            },
             Err(error) => {
                 Err(SecureLinkClientError::ServiceError(Box::new(error)))
             }

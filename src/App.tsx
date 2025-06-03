@@ -18,27 +18,23 @@ function App() {
     // Polling function to check service status
     const checkServiceStatus = async (): Promise<void> => {
         try {
-            const isRunning: boolean = await invoke("is_running");
 
-            console.log(isRunning)
+            const currentState: 'Running' | 'Pending' | 'Stopped' = await invoke("current_state");
 
 
-            // Only update state if there's a mismatch to avoid unnecessary re-renders
-            if (isRunning && connectionState === 'notConnected') {
+            if (currentState === 'Running') {
                 setConnectionState('connected');
                 setError(null);
-            } else if (!isRunning && connectionState === 'connected') {
+            }else if (currentState === 'Pending')
+            {
+                setConnectionState('connecting');
+                setError(null);
+            }else if (currentState === 'Stopped') {
                 setConnectionState('notConnected');
-                // Optionally set an error message when service stops unexpectedly
-                // setError('Service disconnected unexpectedly');
             }
+
         } catch (e) {
-            console.error('Failed to check service status:', e);
-            // If we can't check status and we think we're connected, assume disconnected
-            if (connectionState === 'connected') {
-                setConnectionState('notConnected');
-                setError('Lost connection to service');
-            }
+            setError(String(e));
         }
     };
 
@@ -57,7 +53,7 @@ function App() {
                 pollingIntervalRef.current = null;
             }
         };
-    }, [connectionState]); // Re-run when connectionState changes
+    }, []);
 
     useEffect(() => {
 

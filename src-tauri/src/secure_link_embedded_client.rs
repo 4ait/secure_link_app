@@ -13,7 +13,7 @@ struct SecureLinkEmbeddedClientInner {
     secure_link_server_host: String,
     secure_link_server_port: u16,
     shutdown_sender: Mutex<Option<tokio::sync::mpsc::UnboundedSender<()>>>,
-    is_running: Arc<Mutex<bool>>,
+    current_state: Arc<Mutex<SecureLinkClientState>>,
 }
 
 impl SecureLinkEmbeddedClient {
@@ -28,7 +28,7 @@ impl SecureLinkEmbeddedClient {
                 secure_link_server_host: secure_link_server_host.to_string(),
                 secure_link_server_port,
                 shutdown_sender: Mutex::new(None),
-                is_running: Arc::new(Mutex::new(false)),
+                current_state: Arc::new(Mutex::new(SecureLinkClientState::Stopped)),
             }),
         }
     }
@@ -45,24 +45,24 @@ impl SecureLinkClient for SecureLinkEmbeddedClient {
     }
 
     async fn status(&self) -> Result<SecureLinkClientState, SecureLinkClientError> {
-        if *self.inner.is_running.lock().unwrap() {
-            Ok(SecureLinkClientState::Running)
-        } else {
-            Ok(SecureLinkClientState::Stopped)
-        }
+        Ok(self.inner.current_state.lock().unwrap().clone())
     }
 }
 
 impl SecureLinkEmbeddedClientInner {
     async fn start(&self) -> Result<(), SecureLinkClientError> {
+        
         let mut shutdown_rx = {
-            let is_running_ref = &mut *self.is_running.lock().unwrap();
-
-            if *is_running_ref {
-                return Ok(());
+            
+            let current_state_ref = &mut *self.current_state.lock().unwrap();
+            
+            match current_state_ref {
+                SecureLinkClientState::Running => { return Ok(()); },
+                SecureLinkClientState::Pending => { return Ok(()); },
+                SecureLinkClientState::Stopped => {},
             }
 
-            *is_running_ref = true;
+            *current_state_ref = SecureLinkClientState::Pending;
 
             let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -77,23 +77,35 @@ impl SecureLinkEmbeddedClientInner {
             &self.auth_token,
         );
 
-        let is_running_clone = { self.is_running.clone() };
+        let current_state_ref_clone = {
+            self.current_state.clone()
+        };
 
         let global_channel_connect_result = tokio::select! {
             _ = shutdown_rx.recv() => {
-                *is_running_clone.lock().unwrap() = false;
+                
+                *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped;
                 return Ok(())
             }
+            
             result = connect_to_global_channel_future => {
                 result
             }
+            
         };
 
         // Connect to secure link
         let secure_link = match global_channel_connect_result {
-            Ok(link) => link,
+            Ok(link) => {
+
+                *self.current_state.lock().unwrap() = SecureLinkClientState::Running;
+                
+                link
+                
+            },
             Err(err) => {
-                *is_running_clone.lock().unwrap() = false;
+                
+                *self.current_state.lock().unwrap() = SecureLinkClientState::Stopped;
 
                 return match err {
                     SecureLinkError::UnauthorizedError => {
@@ -101,24 +113,30 @@ impl SecureLinkEmbeddedClientInner {
                     }
                     _ => Err(SecureLinkClientError::NetworkError(Box::new(err))),
                 };
+                
             }
         };
 
-        let is_running_clone = { self.is_running.clone() };
+        let current_state_ref_clone = {
+            self.current_state.clone()
+        };
 
         // Spawn the main loop
 
         tokio::spawn(async move {
             tokio::select! {
+                
                 _ = shutdown_rx.recv() => {
                     // Shutdown requested
                 }
                 _result = secure_link.run_message_loop() => {
                     // Message loop ended
                 }
+                
             }
 
-            *is_running_clone.lock().unwrap() = false;
+            *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped;
+            
         });
 
         Ok(())

@@ -5,8 +5,8 @@
      <Component Id="ServiceManagementUninstall" Guid="12345678-1234-1234-1234-123456789ABC">
        <ServiceControl Id="SecureLinkServiceControl"
                        Name="Secure Link Service"
-                       Stop="uninstall"
-                       Remove="uninstall"
+                       Stop="both"
+                       Remove="both"
                        Wait="yes" />
 
        <RegistryValue Root="HKCU"

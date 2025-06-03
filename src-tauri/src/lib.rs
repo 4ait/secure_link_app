@@ -27,8 +27,7 @@ struct TrayMenuItems {
 
 struct AppData {
     secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>,
-    tray_handle: Mutex<Option<TrayIcon>>,
-    tray_menu_items: Mutex<Option<TrayMenuItems>>, // Add this line
+    tray_menu_items: Mutex<Option<TrayMenuItems>>,
     #[cfg(feature = "secure-link-windows-service_manager")]
     secure_link_service_log_file_path: std::path::PathBuf,
     #[cfg(not(feature = "windows-credential-manager"))]
@@ -344,10 +343,10 @@ pub fn run() {
         })
         .setup(move |app| {
             // Create menu items
-            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let connect_item = MenuItem::with_id(app, "connect", "Connect", false, None::<&str>)?;
-            let disconnect_item = MenuItem::with_id(app, "disconnect", "Disconnect", false, None::<&str>)?;
-            let exit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(app, "show", "Показать Secure Link", true, None::<&str>)?;
+            let connect_item = MenuItem::with_id(app, "connect", "Подключиться", false, None::<&str>)?;
+            let disconnect_item = MenuItem::with_id(app, "disconnect", "Отключиться", false, None::<&str>)?;
+            let exit_item = MenuItem::with_id(app, "exit", "Закрыть Secure Link", true, None::<&str>)?;
 
             let menu = Menu::with_items(app, &[&show_item, &connect_item, &disconnect_item, &exit_item])?;
 
@@ -428,7 +427,6 @@ pub fn run() {
 
             app.manage(AppData {
                 secure_link_client: Mutex::new(None),
-                tray_handle: Mutex::new(Some(tray)),
                 tray_menu_items: Mutex::new(Some(menu_items)), // Store menu items
 
                 #[cfg(feature = "secure-link-windows-service_manager")] secure_link_service_log_file_path: {
@@ -452,7 +450,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            start, 
+            start,
             stop,
             current_state,
             update_auth_token,

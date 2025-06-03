@@ -244,29 +244,11 @@ pub fn run() {
             _ => {}
         })
         .setup(move |app| {
-            // Create tray menu
-
-            let quit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
-
-            let menu = Menu::with_items(app, &[&quit_item])?;
-
             // Create tray icon
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
                 .show_menu_on_left_click(false)
                 .tooltip("Secure Link")
-                .on_menu_event(|app, event| {
-                    // Get the app handle and then the window
-                    let _window = app.get_webview_window("main").unwrap();
-
-                    match event.id.as_ref() {
-                        "exit" => {
-                            app.exit(0);
-                        }
-                        _ => {}
-                    }
-                })
                 .on_tray_icon_event(|tray_handle, event| {
                     // Handle tray icon click events
                     if let tauri::tray::TrayIconEvent::Click {
@@ -276,7 +258,7 @@ pub fn run() {
                     } = event {
                         // Use tray_handle.app_handle() to get the app handle, then get the window
                         let window = tray_handle.app_handle().get_webview_window("main").unwrap();
-                        if window.is_visible().unwrap() 
+                        if window.is_visible().unwrap()
                         {
                             window.hide().unwrap();
                         }

@@ -9,3 +9,7 @@ This template should help get you started developing with Tauri, React and Types
 ## service submodule update
 
 git submodule update --remote --merge
+
+## build app
+
+yarn tauri build

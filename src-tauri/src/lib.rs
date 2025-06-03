@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, TrayIcon},
+    tray::{TrayIconBuilder},
 };
 use tauri::{Manager, State, AppHandle};
 
@@ -19,10 +19,8 @@ pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-ke
 
 // Store menu items for direct updates
 struct TrayMenuItems {
-    show_item: MenuItem<tauri::Wry>,
     connect_item: MenuItem<tauri::Wry>,
-    disconnect_item: MenuItem<tauri::Wry>,
-    exit_item: MenuItem<tauri::Wry>,
+    disconnect_item: MenuItem<tauri::Wry>
 }
 
 struct AppData {
@@ -352,14 +350,12 @@ pub fn run() {
 
             // Store menu items for later updates
             let menu_items = TrayMenuItems {
-                show_item: show_item.clone(),
                 connect_item: connect_item.clone(),
-                disconnect_item: disconnect_item.clone(),
-                exit_item: exit_item.clone(),
+                disconnect_item: disconnect_item.clone()
             };
 
             // Create tray icon and store the handle
-            let tray = TrayIconBuilder::new()
+            let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(true)

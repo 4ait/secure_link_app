@@ -2,7 +2,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use secure_link_client::{SecureLink, SecureLinkError};
 use std::sync::Mutex;
-use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError};
+use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 
 pub struct SecureLinkEmbeddedClient {
     inner: Arc<SecureLinkEmbeddedClientInner>,
@@ -39,9 +39,16 @@ impl SecureLinkClient for SecureLinkEmbeddedClient {
     async fn stop(&self) -> Result<(), SecureLinkClientError> {
         self.inner.stop().await
     }
-
-    async fn is_running(&self) -> Result<bool, SecureLinkClientError> {
-        Ok(*self.inner.is_running.lock().unwrap())
+    
+    async fn status(&self) -> Result<SecureLinkClientState, SecureLinkClientError> {
+        if *self.inner.is_running.lock().unwrap() 
+        {
+            Ok(SecureLinkClientState::Running)
+        }
+        else 
+        {
+            Ok(SecureLinkClientState::Stopped)
+        }
     }
 }
 

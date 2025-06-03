@@ -250,10 +250,12 @@ pub fn run() {
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .menu_on_left_click(false) // Disable menu on left click
+                .show_menu_on_left_click(false)
                 .tooltip("Secure Link")
                 .on_menu_event(|app, event| {
+                    // Get the app handle and then the window
                     let window = app.get_webview_window("main").unwrap();
+
                     match event.id.as_ref() {
                         "show" => {
                             window.show().unwrap();
@@ -268,17 +270,20 @@ pub fn run() {
                         _ => {}
                     }
                 })
-                .on_tray_icon_event(|app, event| {
+                .on_tray_icon_event(|tray_handle, event| {
                     // Handle tray icon click events
                     if let tauri::tray::TrayIconEvent::Click {
                         button: tauri::tray::MouseButton::Left,
                         button_state: tauri::tray::MouseButtonState::Up,
                         ..
                     } = event {
-                        let window = app.get_webview_window("main").unwrap();
+                        // Use tray_handle.app_handle() to get the app handle, then get the window
+                        let window = tray_handle.app_handle().get_webview_window("main").unwrap();
                         if window.is_visible().unwrap() {
                             window.hide().unwrap();
-                        } else {
+                        }
+                        else
+                        {
                             window.show().unwrap();
                             window.set_focus().unwrap();
                         }

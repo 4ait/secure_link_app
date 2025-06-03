@@ -13,7 +13,7 @@ pub enum SecureLinkClientError {
     NetworkError(Box<dyn std::error::Error>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SecureLinkClientState {
     Running,
     Pending,

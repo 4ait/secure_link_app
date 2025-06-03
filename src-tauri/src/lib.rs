@@ -1,11 +1,12 @@
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 use log::warn;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{TrayIconBuilder, TrayIcon},
 };
-use tauri::{Manager, State};
+use tauri::{Manager, State, AppHandle};
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -16,8 +17,18 @@ mod secure_link_embedded_client;
 
 pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-key";
 
+// Store menu items for direct updates
+struct TrayMenuItems {
+    show_item: MenuItem<tauri::Wry>,
+    connect_item: MenuItem<tauri::Wry>,
+    disconnect_item: MenuItem<tauri::Wry>,
+    exit_item: MenuItem<tauri::Wry>,
+}
+
 struct AppData {
     secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>,
+    tray_handle: Mutex<Option<TrayIcon>>,
+    tray_menu_items: Mutex<Option<TrayMenuItems>>, // Add this line
     #[cfg(feature = "secure-link-windows-service_manager")]
     secure_link_service_log_file_path: std::path::PathBuf,
     #[cfg(not(feature = "windows-credential-manager"))]
@@ -53,12 +64,10 @@ async fn current_state(state: State<'_, AppData>) -> Result<String, String> {
 async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
     let log_file_path = state.secure_link_service_log_file_path.clone();
 
-    // Если файл не существует, возвращаем пустую строку
     if !log_file_path.exists() {
         return Ok("".to_string());
     }
 
-    // Читаем содержимое файла логов
     match std::fs::read_to_string(log_file_path) {
         Ok(content) => Ok(content),
         Err(e) => Err(format!("Не удалось прочитать файл логов: {}", e)),
@@ -162,6 +171,46 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
     Ok(())
 }
 
+// Separate tray-specific start function
+async fn tray_start(state: &State<'_, AppData>) -> Result<(), Box<dyn std::error::Error>> {
+    let secure_link_client = ensure_secure_link_client_created(state).await?;
+
+    if let Some(secure_link_client) = secure_link_client {
+        match secure_link_client.start().await {
+            Ok(()) => Ok(()),
+            Err(SecureLinkClientError::UnauthorizedError) => {
+                eprintln!("Unauthorized error when starting from tray");
+                Err("Unauthorized error".into())
+            }
+            Err(err) => {
+                eprintln!("Error starting from tray: {:?}", err);
+                Err(err.into())
+            }
+        }
+    } else {
+        eprintln!("No auth token available for tray start");
+        Err("No auth token".into())
+    }
+}
+
+// Separate tray-specific stop function
+async fn tray_stop(state: &State<'_, AppData>) -> Result<(), Box<dyn std::error::Error>> {
+    let maybe_client_clone = {
+        state
+            .secure_link_client
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|client| client.clone())
+    };
+
+    if let Some(secure_link_client) = maybe_client_clone {
+        secure_link_client.stop().await?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn update_auth_token(state: State<'_, AppData>, auth_token: String) -> Result<(), String> {
     if let Some(current_auth_token) = load_auth_token(&state).map_err(|e| format!("{:?}", e))? {
@@ -182,6 +231,56 @@ async fn update_auth_token(state: State<'_, AppData>, auth_token: String) -> Res
 #[tauri::command]
 async fn get_auth_token(state: State<'_, AppData>) -> Result<Option<String>, String> {
     Ok(load_auth_token(&state).map_err(|e| e.to_string())?)
+}
+
+// Get current client state for tray updates
+async fn get_client_state(state: &State<'_, AppData>) -> SecureLinkClientState {
+    let maybe_client = match ensure_secure_link_client_created(state).await {
+        Ok(client) => client,
+        Err(_) => return SecureLinkClientState::Stopped,
+    };
+
+    if let Some(secure_link_client) = maybe_client {
+        match secure_link_client.status().await {
+            Ok(status) => status,
+            Err(_) => SecureLinkClientState::Stopped,
+        }
+    } else {
+        SecureLinkClientState::Stopped
+    }
+}
+
+// Update tray menu items directly without recreating menu
+async fn update_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let state = app.state::<AppData>();
+    let client_state = get_client_state(&state).await;
+
+    let (is_connect_enabled, is_disconnect_enabled) = match client_state {
+        SecureLinkClientState::Stopped => (true, false),
+        SecureLinkClientState::Pending | SecureLinkClientState::Running => (false, true),
+    };
+
+    // Update menu items directly
+    let menu_items = state.tray_menu_items.lock().unwrap();
+    if let Some(ref items) = *menu_items {
+        items.connect_item.set_enabled(is_connect_enabled)?;
+        items.disconnect_item.set_enabled(is_disconnect_enabled)?;
+    }
+
+    Ok(())
+}
+
+// Background task to poll and update tray menu
+async fn tray_update_task(app: AppHandle) {
+    let mut interval = tokio::time::interval(Duration::from_millis(200));
+
+    loop {
+        if let Err(e) = update_tray_menu(&app).await {
+            eprintln!("Failed to update tray menu: {}", e);
+        }
+
+        interval.tick().await;
+    }
 }
 
 #[cfg(feature = "windows-credential-manager")]
@@ -244,37 +343,53 @@ pub fn run() {
             _ => {}
         })
         .setup(move |app| {
-            // Create tray menu
-
+            // Create menu items
             let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-
-            let connect_item = MenuItem::with_id(app, "connect", "Connect", true, None::<&str>)?;
-
-            let disconnect_item = MenuItem::with_id(app, "disconnect", "Disconnect", true, None::<&str>)?;
-
+            let connect_item = MenuItem::with_id(app, "connect", "Connect", false, None::<&str>)?;
+            let disconnect_item = MenuItem::with_id(app, "disconnect", "Disconnect", false, None::<&str>)?;
             let exit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
 
-            let menu =
-                Menu::with_items(app, &[
-                    &show_item,
-                    &connect_item,
-                    &disconnect_item,
-                    &exit_item
-                ])?;
+            let menu = Menu::with_items(app, &[&show_item, &connect_item, &disconnect_item, &exit_item])?;
 
-            // Create tray icon
-            let _tray = TrayIconBuilder::new()
+            // Store menu items for later updates
+            let menu_items = TrayMenuItems {
+                show_item: show_item.clone(),
+                connect_item: connect_item.clone(),
+                disconnect_item: disconnect_item.clone(),
+                exit_item: exit_item.clone(),
+            };
+
+            // Create tray icon and store the handle
+            let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .tooltip("Secure Link")
                 .on_menu_event(|app, event| {
-                    // Get the app handle and then the window
                     let window = app.get_webview_window("main").unwrap();
+                    let app_handle = app.clone();
 
                     match event.id.as_ref() {
                         "show" => {
                             window.show().unwrap();
+                        }
+                        "connect" => {
+                            // Handle connect action using tray-specific function
+                            tauri::async_runtime::spawn(async move {
+                                let state = app_handle.state::<AppData>();
+                                if let Err(e) = tray_start(&state).await {
+                                    eprintln!("Failed to start secure link from tray: {}", e);
+                                }
+                            });
+                        }
+                        "disconnect" => {
+                            // Handle disconnect action using tray-specific function
+                            tauri::async_runtime::spawn(async move {
+                                let state = app_handle.state::<AppData>();
+                                if let Err(e) = tray_stop(&state).await {
+                                    eprintln!("Failed to stop secure link from tray: {}", e);
+                                }
+                            });
                         }
                         "exit" => {
                             app.exit(0);
@@ -313,6 +428,8 @@ pub fn run() {
 
             app.manage(AppData {
                 secure_link_client: Mutex::new(None),
+                tray_handle: Mutex::new(Some(tray)),
+                tray_menu_items: Mutex::new(Some(menu_items)), // Store menu items
 
                 #[cfg(feature = "secure-link-windows-service_manager")] secure_link_service_log_file_path: {
                     let service_log_file_name = "secure_link_service.log";
@@ -324,6 +441,12 @@ pub fn run() {
                 },
                 secure_link_server_host: secure_link_server_host.to_string(),
                 secure_link_server_port
+            });
+
+            // Start the background tray update task
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tray_update_task(app_handle).await;
             });
 
             Ok(())

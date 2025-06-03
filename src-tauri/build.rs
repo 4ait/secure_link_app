@@ -1,6 +1,4 @@
-
 fn main() {
-
     println!("cargo:rustc-env=SECURE_LINK_SERVER_HOST=192.168.12.16");
     println!("cargo:rustc-env=SECURE_LINK_SERVER_PORT=6001");
 
@@ -16,15 +14,13 @@ fn main() {
     {
         tauri_build::build();
     }
-
 }
 
 #[cfg(target_os = "windows")]
 fn build_tauri_with_embed_admin_manifest() {
-
     let mut windows = tauri_build::WindowsAttributes::new();
     windows = windows.app_manifest(
-r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+        r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
           <dependency>
             <dependentAssembly>
               <assemblyIdentity
@@ -48,10 +44,8 @@ r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
     "#,
     );
 
-    tauri_build::try_build(
-        tauri_build::Attributes::new().windows_attributes(windows)
-    ).expect("failed to run build script");
-
+    tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+        .expect("failed to run build script");
 }
 
 #[cfg(target_os = "windows")]
@@ -64,8 +58,7 @@ fn build_service() {
 
     // Создаем команду
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["build", "--release"])
-        .current_dir(&service_dir);
+    cmd.args(&["build", "--release"]).current_dir(&service_dir);
 
     // Добавляем target только если он установлен
     let target_opt = if let Ok(target) = std::env::var("TARGET") {
@@ -78,7 +71,8 @@ fn build_service() {
     };
 
     // Собираем сервис
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .expect("Failed to execute cargo build for service");
 
     if !output.status.success() {
@@ -90,19 +84,23 @@ fn build_service() {
     }
 
     // Определяем пути с учетом target
-    let service_exe_path =
-        if let Some(target) = target_opt {
-            format!("{}/target/{}/release/secure_link_windows_service.exe", service_dir, target)
-        } else {
-            format!("{}/target/release/secure_link_windows_service.exe", service_dir)
-        };
+    let service_exe_path = if let Some(target) = target_opt {
+        format!(
+            "{}/target/{}/release/secure_link_windows_service.exe",
+            service_dir, target
+        )
+    } else {
+        format!(
+            "{}/target/release/secure_link_windows_service.exe",
+            service_dir
+        )
+    };
 
     let target_dir = format!("{}/target/release", manifest_dir);
     let target_exe_path = format!("{}/secure_link_windows_service.exe", target_dir);
 
     // Создаем целевую директорию если она не существует
-    std::fs::create_dir_all(&target_dir)
-        .expect("Failed to create target directory");
+    std::fs::create_dir_all(&target_dir).expect("Failed to create target directory");
 
     // Проверяем существование исходного файла
     if !std::path::Path::new(&service_exe_path).exists() {
@@ -111,8 +109,10 @@ fn build_service() {
 
     // Копируем исполняемый файл
     if let Err(e) = std::fs::copy(&service_exe_path, &target_exe_path) {
-        panic!("Failed to copy service executable from {} to {}: {}",
-               service_exe_path, target_exe_path, e);
+        panic!(
+            "Failed to copy service executable from {} to {}: {}",
+            service_exe_path, target_exe_path, e
+        );
     }
 
     println!("cargo:warning=Successfully built and copied service executable");

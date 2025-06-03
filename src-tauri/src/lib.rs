@@ -1,11 +1,11 @@
+use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
+use log::warn;
 use std::sync::{Arc, Mutex};
-use tauri::{Manager, State};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
 };
-use log::warn;
-use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
+use tauri::{Manager, State};
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -28,27 +28,22 @@ struct AppData {
 
 #[tauri::command]
 async fn current_state(state: State<'_, AppData>) -> Result<String, String> {
-    let maybe_client =
-        ensure_secure_link_client_created(&state)
+    let maybe_client = ensure_secure_link_client_created(&state)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+
+    if let Some(secure_link_client_locked) = maybe_client {
+        let status = secure_link_client_locked
+            .status()
             .await
             .map_err(|e| format!("{:?}", e))?;
 
-    if let Some(secure_link_client_locked) = maybe_client  {
-        let status = secure_link_client_locked.status().await.map_err(|e| format!("{:?}", e))?;
-
         match status {
-            SecureLinkClientState::Running => {
-                Ok("Running".to_string())
-            }
-            SecureLinkClientState::Pending => {
-                Ok("Pending".to_string())
-            }
-            SecureLinkClientState::Stopped => {
-                Ok("Stopped".to_string())
-            }
+            SecureLinkClientState::Running => Ok("Running".to_string()),
+            SecureLinkClientState::Pending => Ok("Pending".to_string()),
+            SecureLinkClientState::Stopped => Ok("Stopped".to_string()),
         }
-    }
-    else {
+    } else {
         Ok("Stopped".to_string())
     }
 }
@@ -66,16 +61,17 @@ async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
     // Читаем содержимое файла логов
     match std::fs::read_to_string(log_file_path) {
         Ok(content) => Ok(content),
-        Err(e) => Err(format!("Не удалось прочитать файл логов: {}", e))
+        Err(e) => Err(format!("Не удалось прочитать файл логов: {}", e)),
     }
 }
 
-async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
-    let auth_token =
-        match load_auth_token(state)? {
-            None => { return Ok(None)}
-            Some(auth_token) => { auth_token }
-        };
+async fn ensure_secure_link_client_created(
+    state: &State<'_, AppData>,
+) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
+    let auth_token = match load_auth_token(state)? {
+        None => return Ok(None),
+        Some(auth_token) => auth_token,
+    };
 
     let secure_link_client = {
         let mut secure_link_client_locked = state.secure_link_client.lock().unwrap();
@@ -85,7 +81,11 @@ async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result
             None => {
                 #[cfg(feature = "secure-link-embedded-client")]
                 let client = {
-                    secure_link_embedded_client::SecureLinkEmbeddedClient::new(&auth_token, &state.secure_link_server_host, state.secure_link_server_port)
+                    secure_link_embedded_client::SecureLinkEmbeddedClient::new(
+                        &auth_token,
+                        &state.secure_link_server_host,
+                        state.secure_link_server_port,
+                    )
                 };
 
                 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -94,7 +94,7 @@ async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result
                         &state.secure_link_server_host,
                         state.secure_link_server_port,
                         &auth_token,
-                        &state.secure_link_service_log_file_path.to_str().unwrap()
+                        &state.secure_link_service_log_file_path.to_str().unwrap(),
                     )
                 };
 
@@ -108,10 +108,10 @@ async fn ensure_secure_link_client_created(state: &State<'_, AppData>) -> Result
     Ok(Some(secure_link_client))
 }
 
-async fn reinitialize_secure_link_client(state: &State<'_, AppData>) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
-    let current_client = {
-        state.secure_link_client.lock().unwrap().clone()
-    };
+async fn reinitialize_secure_link_client(
+    state: &State<'_, AppData>,
+) -> Result<Option<Arc<dyn SecureLinkClient>>, Box<dyn std::error::Error>> {
+    let current_client = { state.secure_link_client.lock().unwrap().clone() };
 
     if let Some(client) = current_client {
         client.stop().await?;
@@ -126,9 +126,9 @@ async fn reinitialize_secure_link_client(state: &State<'_, AppData>) -> Result<O
 
 #[tauri::command]
 async fn start(state: State<'_, AppData>) -> Result<(), String> {
-    let secure_link_client =
-        ensure_secure_link_client_created(&state).await
-            .map_err(|e| format!("{:?}", e))?;
+    let secure_link_client = ensure_secure_link_client_created(&state)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
 
     if let Some(secure_link_client) = secure_link_client {
         match secure_link_client.start().await {
@@ -136,8 +136,7 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
             Err(SecureLinkClientError::UnauthorizedError) => Err(format!("UnauthorizedError")),
             Err(err) => Err(format!("{:?}", err)),
         }
-    }
-    else {
+    } else {
         Err(format!("No auth token"))
     }
 }
@@ -145,11 +144,19 @@ async fn start(state: State<'_, AppData>) -> Result<(), String> {
 #[tauri::command]
 async fn stop(state: State<'_, AppData>) -> Result<(), String> {
     let maybe_client_clone = {
-        state.secure_link_client.lock().unwrap().as_ref().map(|client| { client.clone() })
+        state
+            .secure_link_client
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|client| client.clone())
     };
 
     if let Some(secure_link_client) = maybe_client_clone {
-        secure_link_client.stop().await.map_err(|e| format!("{:?}", e))?;
+        secure_link_client
+            .stop()
+            .await
+            .map_err(|e| format!("{:?}", e))?;
     }
 
     Ok(())
@@ -157,15 +164,16 @@ async fn stop(state: State<'_, AppData>) -> Result<(), String> {
 
 #[tauri::command]
 async fn update_auth_token(state: State<'_, AppData>, auth_token: String) -> Result<(), String> {
-    if let Some(current_auth_token) = load_auth_token(&state).map_err(|e| format!("{:?}", e))?{
+    if let Some(current_auth_token) = load_auth_token(&state).map_err(|e| format!("{:?}", e))? {
         if current_auth_token == auth_token {
-            return Ok(())
+            return Ok(());
         }
     }
 
     store_auth_token(&state, auth_token).map_err(|e| format!("{:?}", e))?;
 
-    reinitialize_secure_link_client(&state).await
+    reinitialize_secure_link_client(&state)
+        .await
         .map_err(|e| format!("{:?}", e))?;
 
     Ok(())
@@ -176,53 +184,49 @@ async fn get_auth_token(state: State<'_, AppData>) -> Result<Option<String>, Str
     Ok(load_auth_token(&state).map_err(|e| e.to_string())?)
 }
 
-#[cfg(feature = "secure-link-windows-service_manager")]
-#[tauri::command]
-async fn reinstall_service() -> Result<(), String> {
-    if secure_link_windows_service_manager::is_service_installed().map_err(|err|err.to_string())? {
-        secure_link_windows_service_manager::uninstall_service()
-            .map_err(|err|err.to_string())?;
-    }
-
-    secure_link_windows_service_manager::install_service(
-        r#"E:\source\secure_link_windows_service\target\debug\secure_link_windows_service.exe"#
-    ).map_err(|err|err.to_string())?;
-
-    Ok(())
-}
-
 #[cfg(feature = "windows-credential-manager")]
-fn load_auth_token(_state: &State<'_, AppData>) -> Result<Option<String>, Box<dyn std::error::Error>> {
+fn load_auth_token(
+    _state: &State<'_, AppData>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     match windows_credential_manager_rs::CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY) {
         Ok(Some(auth_token)) => Ok(Some(auth_token)),
         Ok(None) => Ok(None),
-        Err(err) => Err(err)
+        Err(err) => Err(err),
     }
 }
 
 #[cfg(not(feature = "windows-credential-manager"))]
-fn load_auth_token(state: &State<'_, AppData>) -> Result<Option<String>, Box<dyn std::error::Error>> {
+fn load_auth_token(
+    state: &State<'_, AppData>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     if let Ok(content) = std::fs::read_to_string(&state.auth_token_file_path) {
         if content.is_empty() {
             Ok(None)
-        }
-        else {
+        } else {
             Ok(Some(content))
         }
-    }
-    else {
+    } else {
         Ok(None)
     }
 }
 
 #[cfg(feature = "windows-credential-manager")]
-fn store_auth_token(_state: &State<'_, AppData>, auth_token: String) -> Result<(), Box<dyn std::error::Error>> {
-    windows_credential_manager_rs::CredentialManager::store(SECURE_LINK_APP_AUTH_TOKEN_KEY, &auth_token)?;
+fn store_auth_token(
+    _state: &State<'_, AppData>,
+    auth_token: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    windows_credential_manager_rs::CredentialManager::store(
+        SECURE_LINK_APP_AUTH_TOKEN_KEY,
+        &auth_token,
+    )?;
     Ok(())
 }
 
 #[cfg(not(feature = "windows-credential-manager"))]
-fn store_auth_token(state: &State<'_, AppData>, auth_token: String) -> Result<(), Box<dyn std::error::Error>> {
+fn store_auth_token(
+    state: &State<'_, AppData>,
+    auth_token: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write(&state.auth_token_file_path, auth_token)?;
     Ok(())
 }
@@ -230,6 +234,7 @@ fn store_auth_token(state: &State<'_, AppData>, auth_token: String) -> Result<()
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -240,11 +245,10 @@ pub fn run() {
         })
         .setup(move |app| {
             // Create tray menu
-            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let hide_item = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
-            let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
+            let quit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
+
+            let menu = Menu::with_items(app, &[&quit_item])?;
 
             // Create tray icon
             let _tray = TrayIconBuilder::new()
@@ -254,17 +258,10 @@ pub fn run() {
                 .tooltip("Secure Link")
                 .on_menu_event(|app, event| {
                     // Get the app handle and then the window
-                    let window = app.get_webview_window("main").unwrap();
+                    let _window = app.get_webview_window("main").unwrap();
 
                     match event.id.as_ref() {
-                        "show" => {
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
-                        }
-                        "hide" => {
-                            window.hide().unwrap();
-                        }
-                        "quit" => {
+                        "exit" => {
                             app.exit(0);
                         }
                         _ => {}
@@ -279,7 +276,8 @@ pub fn run() {
                     } = event {
                         // Use tray_handle.app_handle() to get the app handle, then get the window
                         let window = tray_handle.app_handle().get_webview_window("main").unwrap();
-                        if window.is_visible().unwrap() {
+                        if window.is_visible().unwrap() 
+                        {
                             window.hide().unwrap();
                         }
                         else
@@ -341,8 +339,7 @@ pub fn run() {
             current_state,
             update_auth_token,
             get_auth_token,
-            #[cfg(feature = "secure-link-windows-service_manager")] get_service_log,
-            #[cfg(feature = "secure-link-windows-service_manager")] reinstall_service
+            #[cfg(feature = "secure-link-windows-service_manager")] get_service_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

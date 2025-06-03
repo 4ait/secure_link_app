@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 use async_trait::async_trait;
 use secure_link_client::{SecureLink, SecureLinkError};
+use std::sync::Arc;
 use std::sync::Mutex;
-use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 
 pub struct SecureLinkEmbeddedClient {
     inner: Arc<SecureLinkEmbeddedClientInner>,
@@ -17,7 +17,11 @@ struct SecureLinkEmbeddedClientInner {
 }
 
 impl SecureLinkEmbeddedClient {
-    pub fn new(auth_token:&str, secure_link_server_host: &str, secure_link_server_port: u16) -> Self {
+    pub fn new(
+        auth_token: &str,
+        secure_link_server_host: &str,
+        secure_link_server_port: u16,
+    ) -> Self {
         Self {
             inner: Arc::new(SecureLinkEmbeddedClientInner {
                 auth_token: auth_token.to_string(),
@@ -25,7 +29,7 @@ impl SecureLinkEmbeddedClient {
                 secure_link_server_port,
                 shutdown_sender: Mutex::new(None),
                 is_running: Arc::new(Mutex::new(false)),
-            })
+            }),
         }
     }
 }
@@ -39,25 +43,19 @@ impl SecureLinkClient for SecureLinkEmbeddedClient {
     async fn stop(&self) -> Result<(), SecureLinkClientError> {
         self.inner.stop().await
     }
-    
+
     async fn status(&self) -> Result<SecureLinkClientState, SecureLinkClientError> {
-        if *self.inner.is_running.lock().unwrap() 
-        {
+        if *self.inner.is_running.lock().unwrap() {
             Ok(SecureLinkClientState::Running)
-        }
-        else 
-        {
+        } else {
             Ok(SecureLinkClientState::Stopped)
         }
     }
 }
 
 impl SecureLinkEmbeddedClientInner {
-
     async fn start(&self) -> Result<(), SecureLinkClientError> {
-
         let mut shutdown_rx = {
-
             let is_running_ref = &mut *self.is_running.lock().unwrap();
 
             if *is_running_ref {
@@ -76,50 +74,41 @@ impl SecureLinkEmbeddedClientInner {
         let connect_to_global_channel_future = SecureLink::connect_to_global_channel(
             &self.secure_link_server_host,
             self.secure_link_server_port,
-            &self.auth_token
+            &self.auth_token,
         );
 
-        let is_running_clone = {
-            self.is_running.clone()
-        };
-        
+        let is_running_clone = { self.is_running.clone() };
 
         let global_channel_connect_result = tokio::select! {
-                _ = shutdown_rx.recv() => {
-                    *is_running_clone.lock().unwrap() = false;
-                    return Ok(())
-                }
-                result = connect_to_global_channel_future => {
-                    result
-                }
-            };
+            _ = shutdown_rx.recv() => {
+                *is_running_clone.lock().unwrap() = false;
+                return Ok(())
+            }
+            result = connect_to_global_channel_future => {
+                result
+            }
+        };
 
         // Connect to secure link
         let secure_link = match global_channel_connect_result {
             Ok(link) => link,
             Err(err) => {
-
                 *is_running_clone.lock().unwrap() = false;
-                
+
                 return match err {
                     SecureLinkError::UnauthorizedError => {
                         Err(SecureLinkClientError::UnauthorizedError)
                     }
-                    _ => {
-                        Err(SecureLinkClientError::NetworkError(Box::new(err)))
-                    }
-                }
+                    _ => Err(SecureLinkClientError::NetworkError(Box::new(err))),
+                };
             }
         };
 
-        let is_running_clone = {
-            self.is_running.clone()
-        };
+        let is_running_clone = { self.is_running.clone() };
 
         // Spawn the main loop
 
         tokio::spawn(async move {
-
             tokio::select! {
                 _ = shutdown_rx.recv() => {
                     // Shutdown requested
@@ -130,14 +119,12 @@ impl SecureLinkEmbeddedClientInner {
             }
 
             *is_running_clone.lock().unwrap() = false;
-
         });
 
         Ok(())
     }
 
     async fn stop(&self) -> Result<(), SecureLinkClientError> {
-
         // Send shutdown signal
         let sender = {
             let mut sender_guard = self.shutdown_sender.lock().unwrap();

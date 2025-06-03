@@ -3562,6 +3562,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tauri-plugin-process",
  "thiserror 2.0.12",
  "tokio",
  "windows_credential_manager_rs",
@@ -4231,6 +4232,16 @@ dependencies = [
  "url",
  "windows",
  "zbus",
+]
+
+[[package]]
+name = "tauri-plugin-process"
+version = "2.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57da5888533e802b6206b9685091f8714aa1f5266dc80051a82388449558b773"
+dependencies = [
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

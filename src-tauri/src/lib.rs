@@ -244,29 +244,42 @@ pub fn run() {
             _ => {}
         })
         .setup(move |app| {
+            // Create tray menu
+
+            let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
+
+            let connect_item = MenuItem::with_id(app, "connect", "Connect", true, None::<&str>)?;
+
+            let disconnect_item = MenuItem::with_id(app, "disconnect", "Disconnect", true, None::<&str>)?;
+
+            let exit_item = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
+
+            let menu =
+                Menu::with_items(app, &[
+                    &show_item,
+                    &connect_item,
+                    &disconnect_item,
+                    &exit_item
+                ])?;
+
             // Create tray icon
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .show_menu_on_left_click(false)
+                .menu(&menu)
+                .show_menu_on_left_click(true)
                 .tooltip("Secure Link")
-                .on_tray_icon_event(|tray_handle, event| {
-                    // Handle tray icon click events
-                    if let tauri::tray::TrayIconEvent::Click {
-                        button: tauri::tray::MouseButton::Left,
-                        button_state: tauri::tray::MouseButtonState::Up,
-                        ..
-                    } = event {
-                        // Use tray_handle.app_handle() to get the app handle, then get the window
-                        let window = tray_handle.app_handle().get_webview_window("main").unwrap();
-                        if window.is_visible().unwrap()
-                        {
-                            window.hide().unwrap();
-                        }
-                        else
-                        {
+                .on_menu_event(|app, event| {
+                    // Get the app handle and then the window
+                    let window = app.get_webview_window("main").unwrap();
+
+                    match event.id.as_ref() {
+                        "show" => {
                             window.show().unwrap();
-                            window.set_focus().unwrap();
                         }
+                        "exit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
                     }
                 })
                 .build(app)?;

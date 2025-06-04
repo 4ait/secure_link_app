@@ -1,5 +1,6 @@
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 use async_trait::async_trait;
+use log::error;
 use secure_link_client::{SecureLink, SecureLinkError};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -51,15 +52,17 @@ impl SecureLinkClient for SecureLinkEmbeddedClient {
 
 impl SecureLinkEmbeddedClientInner {
     async fn start(&self) -> Result<(), SecureLinkClientError> {
-        
         let mut shutdown_rx = {
-            
             let current_state_ref = &mut *self.current_state.lock().unwrap();
-            
+
             match current_state_ref {
-                SecureLinkClientState::Running => { return Ok(()); },
-                SecureLinkClientState::Pending => { return Ok(()); },
-                SecureLinkClientState::Stopped => {},
+                SecureLinkClientState::Running => {
+                    return Ok(());
+                }
+                SecureLinkClientState::Pending => {
+                    return Ok(());
+                }
+                SecureLinkClientState::Stopped => {}
             }
 
             *current_state_ref = SecureLinkClientState::Pending;
@@ -77,34 +80,29 @@ impl SecureLinkEmbeddedClientInner {
             &self.auth_token,
         );
 
-        let current_state_ref_clone = {
-            self.current_state.clone()
-        };
+        let current_state_ref_clone = { self.current_state.clone() };
 
         let global_channel_connect_result = tokio::select! {
             _ = shutdown_rx.recv() => {
-                
+
                 *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped;
                 return Ok(())
             }
-            
+
             result = connect_to_global_channel_future => {
                 result
             }
-            
+
         };
 
         // Connect to secure link
         let secure_link = match global_channel_connect_result {
             Ok(link) => {
-
                 *self.current_state.lock().unwrap() = SecureLinkClientState::Running;
-                
+
                 link
-                
-            },
+            }
             Err(err) => {
-                
                 *self.current_state.lock().unwrap() = SecureLinkClientState::Stopped;
 
                 return match err {
@@ -113,30 +111,30 @@ impl SecureLinkEmbeddedClientInner {
                     }
                     _ => Err(SecureLinkClientError::NetworkError(Box::new(err))),
                 };
-                
             }
         };
 
-        let current_state_ref_clone = {
-            self.current_state.clone()
-        };
+        let current_state_ref_clone = { self.current_state.clone() };
 
         // Spawn the main loop
 
         tokio::spawn(async move {
             tokio::select! {
-                
+
                 _ = shutdown_rx.recv() => {
                     // Shutdown requested
                 }
-                _result = secure_link.run_message_loop() => {
-                    // Message loop ended
+                result = secure_link.run_message_loop() => {
+
+                    if let Err(err) = result {
+                          error!("Secure link main loop ended with error {err}");
+                    }
+
                 }
-                
+
             }
 
             *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped;
-            
         });
 
         Ok(())

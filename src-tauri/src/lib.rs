@@ -4,9 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder},
+    tray::TrayIconBuilder,
 };
-use tauri::{Manager, State, AppHandle};
+use tauri::{AppHandle, Manager, State};
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
@@ -23,7 +23,7 @@ pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-ke
 // Store menu items for direct updates
 struct TrayMenuItems {
     connect_item: MenuItem<tauri::Wry>,
-    disconnect_item: MenuItem<tauri::Wry>
+    disconnect_item: MenuItem<tauri::Wry>,
 }
 
 struct AppData {
@@ -329,6 +329,7 @@ fn store_auth_token(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .on_window_event(|window, event| match event {
@@ -452,6 +453,11 @@ pub fn run() {
             get_auth_token,
             #[cfg(feature = "secure-link-windows-service_manager")] get_service_log
         ])
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build()
+        )
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

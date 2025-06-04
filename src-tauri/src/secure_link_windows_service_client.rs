@@ -1,21 +1,21 @@
 use crate::secure_link_client::{SecureLinkClient, SecureLinkClientError, SecureLinkClientState};
 use async_trait::async_trait;
 use secure_link_windows_service_manager::{SecureLinkServiceError, ServiceState};
-pub struct SecureLinkWindowsService {
+pub struct SecureLinkWindowsServiceClient {
     secure_link_server_host: String,
     secure_link_server_port: u16,
     auth_token: String,
     service_log_file_path: String,
 }
 
-impl SecureLinkWindowsService {
+impl SecureLinkWindowsServiceClient {
     pub fn new(
         secure_link_server_host: &str,
         secure_link_server_port: u16,
         auth_token: &str,
         service_log_file_path: &str,
     ) -> Self {
-        SecureLinkWindowsService {
+        SecureLinkWindowsServiceClient {
             secure_link_server_host: secure_link_server_host.to_string(),
             secure_link_server_port,
             auth_token: auth_token.to_string(),
@@ -25,7 +25,7 @@ impl SecureLinkWindowsService {
 }
 
 #[async_trait]
-impl SecureLinkClient for SecureLinkWindowsService {
+impl SecureLinkClient for SecureLinkWindowsServiceClient {
     async fn start(&self) -> Result<(), SecureLinkClientError> {
         let start_service_result = secure_link_windows_service_manager::start_service(
             self.secure_link_server_host.as_str(),

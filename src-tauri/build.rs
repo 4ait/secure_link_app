@@ -66,9 +66,6 @@ fn build_service() {
     let load_dev_certs = std::env::var("SECURE_LINK_SERVICE_WITH_LOAD_DEV_CERTS").is_ok();
     if load_dev_certs {
         cmd.args(&["--features", "load_dev_certs"]);
-        println!("cargo:warning=Building service with load_dev_certs feature enabled");
-    } else {
-        println!("cargo:warning=Building service without load_dev_certs feature");
     }
 
     // Добавляем target только если он установлен
@@ -85,9 +82,7 @@ fn build_service() {
     if let Ok(rust_log) = std::env::var("RUST_LOG") {
         cmd.env("RUST_LOG", rust_log);
     }
-
-    // Собираем сервис
-    println!("cargo:warning=Executing cargo build for service...");
+    
     let output = cmd
         .output()
         .expect("Failed to execute cargo build for service");
@@ -107,14 +102,6 @@ fn build_service() {
             stderr, stdout
         );
         
-    }
-
-
-    // Выводим финальную информацию
-    if load_dev_certs {
-        println!("cargo:warning=Service built WITH load_dev_certs feature - suitable for development");
-    } else {
-        println!("cargo:warning=Service built WITHOUT load_dev_certs feature - suitable for production");
     }
 
     // Определяем пути с учетом target
@@ -147,13 +134,6 @@ fn build_service() {
             "Failed to copy service executable from {} to {}: {}",
             service_exe_path, target_exe_path, e
         );
-    }
-
-    println!("cargo:warning=Successfully built and copied service executable to: {}", target_exe_path);
-
-    // Дополнительная проверка что файл был скопирован
-    if !std::path::Path::new(&target_exe_path).exists() {
-        panic!("Target executable was not created at: {}", target_exe_path);
     }
 
 }

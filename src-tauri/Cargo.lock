@@ -3565,7 +3565,7 @@ dependencies = [
  "tauri-plugin-process",
  "thiserror 2.0.12",
  "tokio",
- "windows_credential_manager_rs",
+ "winreg",
 ]
 
 [[package]]

@@ -326,8 +326,6 @@ function App() {
 
     const handleTokenSave = async (): Promise<void> => {
 
-        console.log(token)
-
         try {
             await invoke("update_auth_token", { authToken: token });
             setSavedToken(token);

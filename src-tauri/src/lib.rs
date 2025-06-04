@@ -10,10 +10,13 @@ use tauri::{Manager, State, AppHandle};
 
 mod secure_link_client;
 #[cfg(feature = "secure-link-windows-service_manager")]
-mod secure_link_windows_service;
+mod secure_link_windows_service_client;
 
 #[cfg(feature = "secure-link-embedded-client")]
 mod secure_link_embedded_client;
+
+#[cfg(feature = "windows-registry")]
+mod auth_token_windows_registry_storage;
 
 pub static SECURE_LINK_APP_AUTH_TOKEN_KEY: &str = "secure-link-app:auth-token-key";
 
@@ -28,7 +31,7 @@ struct AppData {
     tray_menu_items: Mutex<Option<TrayMenuItems>>,
     #[cfg(feature = "secure-link-windows-service_manager")]
     secure_link_service_log_file_path: std::path::PathBuf,
-    #[cfg(not(feature = "windows-credential-manager"))]
+    #[cfg(not(feature = "windows-registry"))]
     auth_token_file_path: std::path::PathBuf,
     secure_link_server_host: String,
     secure_link_server_port: u16,
@@ -96,7 +99,7 @@ async fn ensure_secure_link_client_created(
 
                 #[cfg(feature = "secure-link-windows-service_manager")]
                 let client = {
-                    secure_link_windows_service::SecureLinkWindowsService::new(
+                    secure_link_windows_service_client::SecureLinkWindowsServiceClient::new(
                         &state.secure_link_server_host,
                         state.secure_link_server_port,
                         &auth_token,
@@ -280,18 +283,15 @@ async fn tray_update_task(app: AppHandle) {
     }
 }
 
-#[cfg(feature = "windows-credential-manager")]
+#[cfg(feature = "windows-registry")]
 fn load_auth_token(
     _state: &State<'_, AppData>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    match windows_credential_manager_rs::CredentialManager::load(SECURE_LINK_APP_AUTH_TOKEN_KEY) {
-        Ok(Some(auth_token)) => Ok(Some(auth_token)),
-        Ok(None) => Ok(None),
-        Err(err) => Err(err),
-    }
+
+    Ok(auth_token_windows_registry_storage::load_auth_token()?)
 }
 
-#[cfg(not(feature = "windows-credential-manager"))]
+#[cfg(not(feature = "windows-registry"))]
 fn load_auth_token(
     state: &State<'_, AppData>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
@@ -306,19 +306,18 @@ fn load_auth_token(
     }
 }
 
-#[cfg(feature = "windows-credential-manager")]
+#[cfg(feature = "windows-registry")]
 fn store_auth_token(
     _state: &State<'_, AppData>,
     auth_token: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    windows_credential_manager_rs::CredentialManager::store(
-        SECURE_LINK_APP_AUTH_TOKEN_KEY,
-        &auth_token,
-    )?;
+
+    auth_token_windows_registry_storage::store_auth_token(&auth_token)?;
+
     Ok(())
 }
 
-#[cfg(not(feature = "windows-credential-manager"))]
+#[cfg(not(feature = "windows-registry"))]
 fn store_auth_token(
     state: &State<'_, AppData>,
     auth_token: String,
@@ -429,7 +428,7 @@ pub fn run() {
                     let service_log_file_name = "secure_link_service.log";
                     app_data_dir.join(&service_log_file_name)
                 },
-                #[cfg(not(feature = "windows-credential-manager"))] auth_token_file_path: {
+                #[cfg(not(feature = "windows-registry"))] auth_token_file_path: {
                     let auth_token_file = "auth_token_file.txt";
                     app_data_dir.join(&auth_token_file)
                 },

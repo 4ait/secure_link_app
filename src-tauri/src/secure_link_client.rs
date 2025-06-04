@@ -5,7 +5,7 @@ pub enum SecureLinkClientError {
     #[error("Unauthorized")]
     UnauthorizedError,
 
-    #[cfg(feature = "secure-link-windows-service_manager")]
+    #[cfg(feature = "secure-link-windows-service-client")]
     #[error("ServiceError")]
     ServiceError(Box<dyn std::error::Error>),
 

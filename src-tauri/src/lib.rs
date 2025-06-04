@@ -9,7 +9,7 @@ use tauri::{
 use tauri::{AppHandle, Manager, State};
 
 mod secure_link_client;
-#[cfg(feature = "secure-link-windows-service_manager")]
+#[cfg(feature = "secure-link-windows-service-client")]
 mod secure_link_windows_service_client;
 
 #[cfg(feature = "secure-link-embedded-client")]
@@ -29,7 +29,7 @@ struct TrayMenuItems {
 struct AppData {
     secure_link_client: Mutex<Option<Arc<dyn SecureLinkClient + Send + Sync>>>,
     tray_menu_items: Mutex<Option<TrayMenuItems>>,
-    #[cfg(feature = "secure-link-windows-service_manager")]
+    #[cfg(feature = "secure-link-windows-service-client")]
     secure_link_service_log_file_path: std::path::PathBuf,
     #[cfg(not(feature = "windows-registry"))]
     auth_token_file_path: std::path::PathBuf,
@@ -59,7 +59,7 @@ async fn current_state(state: State<'_, AppData>) -> Result<String, String> {
     }
 }
 
-#[cfg(feature = "secure-link-windows-service_manager")]
+#[cfg(feature = "secure-link-windows-service-client")]
 #[tauri::command]
 async fn get_service_log(state: State<'_, AppData>) -> Result<String, String> {
     let log_file_path = state.secure_link_service_log_file_path.clone();
@@ -97,7 +97,7 @@ async fn ensure_secure_link_client_created(
                     )
                 };
 
-                #[cfg(feature = "secure-link-windows-service_manager")]
+                #[cfg(feature = "secure-link-windows-service-client")]
                 let client = {
                     secure_link_windows_service_client::SecureLinkWindowsServiceClient::new(
                         &state.secure_link_server_host,
@@ -397,7 +397,7 @@ pub fn run() {
             let exe_path = std::env::current_exe()?;
             let exe_dir = exe_path.parent().ok_or("Failed to get parent directory of exe")?.to_path_buf();
 
-            #[cfg(feature = "secure-link-windows-service_manager")]{
+            #[cfg(feature = "secure-link-windows-service-client")]{
                 if !secure_link_windows_service_manager::is_service_installed()? {
                     secure_link_windows_service_manager::install_service(
                         exe_dir.join("secure_link_windows_service.exe").to_str().unwrap()
@@ -425,7 +425,7 @@ pub fn run() {
                 secure_link_client: Mutex::new(None),
                 tray_menu_items: Mutex::new(Some(menu_items)), // Store menu items
 
-                #[cfg(feature = "secure-link-windows-service_manager")] secure_link_service_log_file_path: {
+                #[cfg(feature = "secure-link-windows-service-client")] secure_link_service_log_file_path: {
                     let service_log_file_name = "secure_link_service.log";
                     app_data_dir.join(&service_log_file_name)
                 },
@@ -451,7 +451,7 @@ pub fn run() {
             current_state,
             update_auth_token,
             get_auth_token,
-            #[cfg(feature = "secure-link-windows-service_manager")] get_service_log
+            #[cfg(feature = "secure-link-windows-service-client")] get_service_log
         ])
         .plugin(
             tauri_plugin_log::Builder::new()

@@ -13,17 +13,14 @@ name = "secure_link_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-secure-link-windows-service_manager = ["secure_link_windows_service_manager"]
+secure-link-windows-service-client = ["secure_link_windows_service_manager"]
 secure-link-embedded-client = [ "secure_link_client"]
 windows-registry = [ "winreg"]
 
 windows = [
-    "secure-link-windows-service_manager",
+    "secure-link-windows-service-client",
     "windows-registry"
 ]
-
-#default = ["windows"]
-default = ["secure-link-embedded-client"]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }

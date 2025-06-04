@@ -1,7 +1,8 @@
 fn main() {
-    println!("cargo:rustc-env=SECURE_LINK_SERVER_HOST=192.168.12.16");
-    println!("cargo:rustc-env=SECURE_LINK_SERVER_PORT=6001");
 
+    println!("cargo:rerun-if-env-changed=SECURE_LINK_SERVER_HOST");
+    println!("cargo:rerun-if-env-changed=SECURE_LINK_SERVER_PORT");
+    
     // Собираем сервис только на Windows
     #[cfg(target_os = "windows")]
     build_service();
@@ -55,10 +56,20 @@ fn build_service() {
 
     println!("cargo:rerun-if-changed={}/src", service_dir);
     println!("cargo:rerun-if-changed={}/Cargo.toml", service_dir);
+    println!("cargo:rerun-if-env-changed=SECURE_LINK_SERVICE_WITH_LOAD_DEV_CERTS");
 
     // Создаем команду
     let mut cmd = std::process::Command::new("cargo");
     cmd.args(&["build", "--release"]).current_dir(&service_dir);
+
+    // Проверяем переменную окружения для включения load_dev_certs feature
+    let load_dev_certs = std::env::var("SECURE_LINK_SERVICE_WITH_LOAD_DEV_CERTS").is_ok();
+    if load_dev_certs {
+        cmd.args(&["--features", "load_dev_certs"]);
+        println!("cargo:warning=Building service with load_dev_certs feature enabled");
+    } else {
+        println!("cargo:warning=Building service without load_dev_certs feature");
+    }
 
     // Добавляем target только если он установлен
     let target_opt = if let Ok(target) = std::env::var("TARGET") {
@@ -70,18 +81,34 @@ fn build_service() {
         None
     };
 
+    // Добавляем дополнительные переменные окружения если они есть
+    if let Ok(rust_log) = std::env::var("RUST_LOG") {
+        cmd.env("RUST_LOG", rust_log);
+    }
+
     // Собираем сервис
+    println!("cargo:warning=Executing cargo build for service...");
     let output = cmd
         .output()
         .expect("Failed to execute cargo build for service");
 
     if !output.status.success() {
+        // Выводим подробную информацию об ошибке
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        eprintln!("=== SERVICE BUILD FAILED ===");
+        eprintln!("STDERR:\n{}", stderr);
+        eprintln!("STDOUT:\n{}", stdout);
+        eprintln!("============================");
+
         panic!(
             "Failed to build service: {}\nstdout: {}",
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
+            stderr, stdout
         );
     }
+
+    println!("cargo:warning=Service build completed successfully");
 
     // Определяем пути с учетом target
     let service_exe_path = if let Some(target) = target_opt {
@@ -107,6 +134,11 @@ fn build_service() {
         panic!("Service executable not found at: {}", service_exe_path);
     }
 
+    // Получаем информацию о размере файла для диагностики
+    if let Ok(metadata) = std::fs::metadata(&service_exe_path) {
+        println!("cargo:warning=Service executable size: {} bytes", metadata.len());
+    }
+
     // Копируем исполняемый файл
     if let Err(e) = std::fs::copy(&service_exe_path, &target_exe_path) {
         panic!(
@@ -115,5 +147,17 @@ fn build_service() {
         );
     }
 
-    println!("cargo:warning=Successfully built and copied service executable");
+    println!("cargo:warning=Successfully built and copied service executable to: {}", target_exe_path);
+
+    // Дополнительная проверка что файл был скопирован
+    if !std::path::Path::new(&target_exe_path).exists() {
+        panic!("Target executable was not created at: {}", target_exe_path);
+    }
+
+    // Выводим финальную информацию
+    if load_dev_certs {
+        println!("cargo:warning=Service built WITH load_dev_certs feature - suitable for development");
+    } else {
+        println!("cargo:warning=Service built WITHOUT load_dev_certs feature - suitable for production");
+    }
 }

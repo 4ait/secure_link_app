@@ -5,7 +5,14 @@ description = "A Tauri App"
 authors = ["Ridtt"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[env]
+
+SECURE_LINK_SERVER_HOST = "rdp.4ait.ru"
+SECURE_LINK_SERVER_PORT = "60200"
+
+#SECURE_LINK_SERVICE_WITH_LOAD_DEV_CERTS = "1"
+#SECURE_LINK_SERVER_HOST = "192.168.12.16"
+#SECURE_LINK_SERVER_HOST = "6001"
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary

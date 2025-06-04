@@ -287,7 +287,6 @@ async fn tray_update_task(app: AppHandle) {
 fn load_auth_token(
     _state: &State<'_, AppData>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
-
     Ok(auth_token_windows_registry_storage::load_auth_token()?)
 }
 
@@ -311,7 +310,6 @@ fn store_auth_token(
     _state: &State<'_, AppData>,
     auth_token: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
-
     auth_token_windows_registry_storage::store_auth_token(&auth_token)?;
 
     Ok(())
@@ -329,6 +327,11 @@ fn store_auth_token(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app.get_webview_window("main")
+                .expect("no main window")
+                .show();
+        }))
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())

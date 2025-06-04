@@ -7,7 +7,8 @@
       "wix": {
         "fragmentPaths": ["uninstall_service.wxs"],
         "componentRefs": ["ServiceManagementUninstall"],
-        "template": "main.wxs"
+        "template": "main.wxs",
+        "language": "ru-RU"
       }
     }
   }

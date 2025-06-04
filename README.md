@@ -12,5 +12,5 @@ git submodule update --remote --merge
 
 ## build app
 
-yarn tauri build --target x86_64-pc-windows-msvc
+yarn tauri build --target x86_64-pc-windows-msvc --features windows
 

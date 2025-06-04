@@ -1,8 +1,7 @@
 fn main() {
-
     println!("cargo:rerun-if-env-changed=SECURE_LINK_SERVER_HOST");
     println!("cargo:rerun-if-env-changed=SECURE_LINK_SERVER_PORT");
-    
+
     // Собираем сервис только на Windows
     #[cfg(target_os = "windows")]
     build_service();
@@ -82,7 +81,7 @@ fn build_service() {
     if let Ok(rust_log) = std::env::var("RUST_LOG") {
         cmd.env("RUST_LOG", rust_log);
     }
-    
+
     let output = cmd
         .output()
         .expect("Failed to execute cargo build for service");
@@ -97,11 +96,7 @@ fn build_service() {
         eprintln!("STDOUT:\n{}", stdout);
         eprintln!("============================");
 
-        panic!(
-            "Failed to build service: {}\nstdout: {}",
-            stderr, stdout
-        );
-        
+        panic!("Failed to build service: {}\nstdout: {}", stderr, stdout);
     }
 
     // Определяем пути с учетом target
@@ -127,7 +122,7 @@ fn build_service() {
     if !std::path::Path::new(&service_exe_path).exists() {
         panic!("Service executable not found at: {}", service_exe_path);
     }
-    
+
     // Копируем исполняемый файл
     if let Err(e) = std::fs::copy(&service_exe_path, &target_exe_path) {
         panic!(
@@ -135,5 +130,4 @@ fn build_service() {
             service_exe_path, target_exe_path, e
         );
     }
-
 }

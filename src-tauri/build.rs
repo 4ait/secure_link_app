@@ -106,9 +106,16 @@ fn build_service() {
             "Failed to build service: {}\nstdout: {}",
             stderr, stdout
         );
+        
     }
 
-    println!("cargo:warning=Service build completed successfully");
+
+    // Выводим финальную информацию
+    if load_dev_certs {
+        println!("cargo:warning=Service built WITH load_dev_certs feature - suitable for development");
+    } else {
+        println!("cargo:warning=Service built WITHOUT load_dev_certs feature - suitable for production");
+    }
 
     // Определяем пути с учетом target
     let service_exe_path = if let Some(target) = target_opt {
@@ -133,12 +140,7 @@ fn build_service() {
     if !std::path::Path::new(&service_exe_path).exists() {
         panic!("Service executable not found at: {}", service_exe_path);
     }
-
-    // Получаем информацию о размере файла для диагностики
-    if let Ok(metadata) = std::fs::metadata(&service_exe_path) {
-        println!("cargo:warning=Service executable size: {} bytes", metadata.len());
-    }
-
+    
     // Копируем исполняемый файл
     if let Err(e) = std::fs::copy(&service_exe_path, &target_exe_path) {
         panic!(
@@ -154,10 +156,4 @@ fn build_service() {
         panic!("Target executable was not created at: {}", target_exe_path);
     }
 
-    // Выводим финальную информацию
-    if load_dev_certs {
-        println!("cargo:warning=Service built WITH load_dev_certs feature - suitable for development");
-    } else {
-        println!("cargo:warning=Service built WITHOUT load_dev_certs feature - suitable for production");
-    }
 }

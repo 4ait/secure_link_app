@@ -3,7 +3,7 @@ linker = "link.exe"
 
 [env]
 
-SECURE_LINK_SERVER_HOST = "rdp.4ait.ru"
+SECURE_LINK_SERVER_HOST = "stellar-rdp-a.4ait.ru"
 SECURE_LINK_SERVER_PORT = "60200"
 
 #SECURE_LINK_SERVICE_WITH_LOAD_DEV_CERTS = "1"

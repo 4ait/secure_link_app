@@ -1,3 +1,4 @@
 [submodule "secure_link_windows_service"]
 	path = secure_link_windows_service
 	url = https://github.com/4ait/secure_link_windows_service.git
+	branch = v0.1.1

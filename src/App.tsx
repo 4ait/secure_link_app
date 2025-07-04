@@ -11,16 +11,17 @@ function App() {
     const [error, setError] = useState<string | null>(null);
     const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
     const [showContextMenu, setShowContextMenu] = useState<boolean>(false);
-    const [token, setToken] = useState<string>('');
+    const [token, setToken] = useState<string | null>(null);
     const [savedToken, setSavedToken] = useState<string>('');
+    const [pasteSuccess, setPasteSuccess] = useState<boolean>(false);
     const pollingIntervalRef = useRef<number | null>(null);
+    const pasteTimeoutRef = useRef<number | null>(null);
 
     // Polling function to check service status
     const checkServiceStatus = async (): Promise<void> => {
         try {
 
             const currentState: 'Running' | 'Pending' | 'Stopped' = await invoke("current_state");
-
 
             if (currentState === 'Running') {
                 setConnectionState('connected');
@@ -43,7 +44,7 @@ function App() {
         // Initial status check
         checkServiceStatus();
 
-        // Start polling every 2 seconds
+        // Start polling every 500 ms
         pollingIntervalRef.current = setInterval(checkServiceStatus, 500);
 
         // Cleanup on unmount
@@ -51,6 +52,10 @@ function App() {
             if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current);
                 pollingIntervalRef.current = null;
+            }
+            if (pasteTimeoutRef.current) {
+                clearTimeout(pasteTimeoutRef.current);
+                pasteTimeoutRef.current = null;
             }
         };
     }, []);
@@ -263,17 +268,26 @@ function App() {
     }, []);
 
     const handleButtonClick = async (): Promise<void> => {
+
         if (connectionState === "notConnected") {
-            setConnectionState('connecting');
 
             try {
+
+                if (!token) {
+                    setShowTokenModal(true)
+                    return
+                }
+
+                setConnectionState('connecting');
                 await invoke("start");
                 setConnectionState('connected');
                 setError(null);
+
             } catch (e) {
                 setError(String(e));
                 setConnectionState('notConnected');
             }
+
         } else if (connectionState === "connected") {
             try {
                 await invoke("stop");
@@ -324,7 +338,44 @@ function App() {
         }
     };
 
+    const handlePasteClick = async (): Promise<void> => {
+        try {
+            // Check if clipboard API is available
+            if (!navigator.clipboard || !navigator.clipboard.readText) {
+                setError('Clipboard API not supported');
+                return;
+            }
+
+            // Request clipboard permission and read text
+            const text = await navigator.clipboard.readText();
+
+            if (text.trim()) {
+                setToken(text.trim());
+
+                // Show success state
+                setPasteSuccess(true);
+
+                // Reset after 2 seconds
+                if (pasteTimeoutRef.current) {
+                    clearTimeout(pasteTimeoutRef.current);
+                }
+                pasteTimeoutRef.current = setTimeout(() => {
+                    setPasteSuccess(false);
+                }, 2000);
+            } else {
+                setError('Clipboard is empty');
+            }
+        } catch (e) {
+            console.error('Clipboard error:', e);
+            setError('Failed to read clipboard. Make sure the app has permission.');
+        }
+    };
+
     const handleTokenSave = async (): Promise<void> => {
+
+        if (!token) {
+            return
+        }
 
         try {
             await invoke("update_auth_token", { authToken: token });
@@ -415,13 +466,22 @@ function App() {
 
                         <div className="modal-body">
                             <label className="modal-label">API Token</label>
-                            <input
-                                type="password"
-                                value={token}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setToken(e.target.value)}
-                                placeholder="Enter your API token..."
-                                className="modal-input"
-                            />
+                            <div className="token-input-container">
+                                <input
+                                    type="text"
+                                    value={token || ''}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setToken(e.target.value)}
+                                    placeholder="Enter your API token..."
+                                    className="modal-input"
+                                />
+                                <button
+                                    onClick={handlePasteClick}
+                                    className={`paste-button ${pasteSuccess ? 'paste-success' : ''}`}
+                                    title="Paste from clipboard"
+                                >
+                                    {pasteSuccess ? '✓' : '⎘'}
+                                </button>
+                            </div>
 
                             {savedToken && (
                                 <div className="token-status">

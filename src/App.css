@@ -388,3 +388,51 @@
     transform: translateY(0) scale(1);
   }
 }
+
+.token-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-input {
+  flex: 1;
+  /* остальные стили остаются прежними */
+}
+
+.paste-button {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.paste-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.paste-button:active {
+  transform: scale(0.95);
+}
+
+.paste-button.paste-success {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  color: #00ff00;
+}
+
+.paste-button.paste-success:hover {
+  background: rgba(0, 255, 0, 0.3);
+}

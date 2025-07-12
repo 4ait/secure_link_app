@@ -1,7 +1,7 @@
 {
   "bundle": {
     "resources": {
-      "target/release/secure_link_windows_service.exe": "secure_link_windows_service.exe"
+      "target/x86_64-pc-windows-msvc/release/secure_link_windows_service.exe": "secure_link_windows_service.exe"
     },
     "windows": {
       "wix": {

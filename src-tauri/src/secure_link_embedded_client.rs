@@ -114,27 +114,27 @@ impl SecureLinkEmbeddedClientInner {
             }
         };
 
-        let current_state_ref_clone = { self.current_state.clone() };
+        let current_state_ref_clone = self.current_state.clone();
 
         // Spawn the main loop
-
         tokio::spawn(async move {
+            
             tokio::select! {
+            
+                 _ = shutdown_rx.recv() => {
+                     // Shutdown requested
+                 }
+                 result = secure_link.run_message_loop() => {
+            
+                     if let Err(err) = result {
+                           error!("Secure link main loop ended with error {err}");
+                     }
+            
+                 }
+            
+             }
 
-                _ = shutdown_rx.recv() => {
-                    // Shutdown requested
-                }
-                result = secure_link.run_message_loop() => {
-
-                    if let Err(err) = result {
-                          error!("Secure link main loop ended with error {err}");
-                    }
-
-                }
-
-            }
-
-            *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped;
+            *current_state_ref_clone.lock().unwrap() = SecureLinkClientState::Stopped
         });
 
         Ok(())

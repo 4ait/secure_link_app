@@ -430,13 +430,13 @@ function App() {
                             onClick={handleTokenMenuClick}
                             className="context-menu-item"
                         >
-                            API Token
+                            Настройка подключения
                         </button>
                         <button
                             onClick={handleServiceLogClick}
                             className="context-menu-item"
                         >
-                            Service Log
+                            Лог службы
                         </button>
                     </div>
                 )}
@@ -461,23 +461,23 @@ function App() {
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <div className="modal-header">
-                            <h2 className="modal-title">API Configuration</h2>
+                            <h2 className="modal-title">Настройка подключения</h2>
                         </div>
 
                         <div className="modal-body">
-                            <label className="modal-label">API Token</label>
+                            <label className="modal-label">Токен</label>
                             <div className="token-input-container">
                                 <input
                                     type="text"
                                     value={token || ''}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setToken(e.target.value)}
-                                    placeholder="Enter your API token..."
+                                    placeholder="Введите ваш токен..."
                                     className="modal-input"
                                 />
                                 <button
                                     onClick={handlePasteClick}
                                     className={`paste-button ${pasteSuccess ? 'paste-success' : ''}`}
-                                    title="Paste from clipboard"
+                                    title="Вставьте из буфера обмена"
                                 >
                                     {pasteSuccess ? '✓' : '⎘'}
                                 </button>
@@ -485,7 +485,7 @@ function App() {
 
                             {savedToken && (
                                 <div className="token-status">
-                                    <span className="token-status-text">✓ Token saved</span>
+                                    <span className="token-status-text">✓ Токен сохранен</span>
                                 </div>
                             )}
                         </div>

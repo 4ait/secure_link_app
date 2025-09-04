@@ -3,39 +3,38 @@
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-  <!-- В эти переменные мы передадим значения через -d при сборке -->
-  <?define AppName = "$(var.AppName)" ?>
-  <?define Manufacturer = "$(var.Manufacturer)" ?>
-  <?define BundleVersion = "$(var.BundleVersion)" ?>
-  <?define UpgradeCode = "$(var.UpgradeCode)" ?>
-  <?define MsiPath = "$(var.MsiPath)" ?>
-  <?define VCRedistPath = "$(var.VCRedistPath)" ?>
-
   <Bundle Name="$(var.AppName)"
           Manufacturer="$(var.Manufacturer)"
           Version="$(var.BundleVersion)"
           UpgradeCode="$(var.UpgradeCode)"
-          Compressed="yes"
-          PerMachine="yes">
+          Compressed="yes">
 
+    <!-- ВАРИАНТ А: гиперссылка на лицензию -->
     <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense" />
+    <WixVariable Id="WixStdbaLicenseUrl" Value="https://example.com/license" />
 
-    <!-- Проверка наличия VC++ 2015–2022 x64 -->
+    <!-- Если предпочитаете RTF-окно лицензии, замените две строки выше на:
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
+    <WixVariable Id="WixStdbaLicenseRtf" Value="installer\license.rtf" />
+    -->
+
+    <!-- Проверка VC++ 2015–2022 x64 -->
     <util:RegistrySearch
         Id="VC15_22x64Installed"
         Root="HKLM"
         Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
         Value="Installed"
-        Variable="VCREDIST_X64_INSTALLED"
+        Variable="VCRedistInstalled"
         Result="value"
-        Format="integer" />
+        Win64="yes" />
     <util:RegistrySearch
         Id="VC15_22x64Version"
         Root="HKLM"
         Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
         Value="Version"
-        Variable="VCREDIST_X64_VERSION"
-        Result="value" />
+        Variable="VCRedistVersion"
+        Result="value"
+        Win64="yes" />
 
     <Chain>
       <!-- VC_redist -->
@@ -49,10 +48,9 @@
           Vital="yes"
           InstallCommand="/install /passive /norestart"
           RepairCommand="/repair /passive /norestart"
-          DetectCondition="(VCREDIST_X64_INSTALLED >= 1) AND (VCREDIST_X64_VERSION >= v14.29.30000.0)" />
-          <!-- При необходимости увеличьте минимальную версию -->
+          DetectCondition="(VCRedistInstalled >= 1) AND (VCRedistVersion >= v14.29.30000.0)" />
 
-      <!-- Ваш MSI от Tauri -->
+      <!-- Ваш MSI (БЕЗ MsiProperty ALLUSERS) -->
       <MsiPackage
           Id="MyAppMsi"
           SourceFile="$(var.MsiPath)"

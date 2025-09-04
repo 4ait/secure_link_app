@@ -35,7 +35,7 @@ $light  = "light.exe"
   -dUpgradeCode="$UpgradeCode" `
   -dMsiPath="$($msi.FullName)" `
   -dVCRedistPath="$VcRedist" `
-  -out .\bundle_obj\Bundle.wixobj `
+  -out .\target\bundle_obj\Bundle.wixobj `
   $Wxs
 if ($LASTEXITCODE -ne 0) { throw "candle failed" }
 
@@ -43,8 +43,8 @@ if ($LASTEXITCODE -ne 0) { throw "candle failed" }
   -nologo `
   -ext WixBalExtension `
   -ext WixUtilExtension `
-  -out ".\bundle_dist\$($ProductName)-Setup-$version-x64.exe" `
-  .\bundle_obj\Bundle.wixobj
+  -out ".\target\bundle_dist\$($ProductName)-Setup-$version-x64.exe" `
+  .\target\bundle_obj\Bundle.wixobj
 if ($LASTEXITCODE -ne 0) { throw "light failed" }
 
-Write-Host "Bundle created: .\bundle_dist\$($ProductName)-Setup-$version-x64.exe"
+Write-Host "Bundle created: .\target\bundle_dist\$($ProductName)-Setup-$version-x64.exe"

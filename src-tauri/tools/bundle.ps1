@@ -1,7 +1,7 @@
 param(
     [string]$ProductName = "Secure Link",
-    [string]$Manufacturer = "YourCompany",
-    [string]$UpgradeCode = "{PUT-YOUR-BUNDLE-UPGRADECODE-GUID}",
+    [string]$Manufacturer = "4A",
+    [string]$UpgradeCode = "17603da0-6641-4187-851b-598409b3f835",
     [string]$VcRedist = "installer\\VC_redist.x64.exe",
     [string]$Wxs = "installer\\Bundle.wxs"
 )

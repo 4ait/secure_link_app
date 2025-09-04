@@ -1,22 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
-     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-
   <Bundle Name="$(var.AppName)"
           Manufacturer="$(var.Manufacturer)"
           Version="$(var.BundleVersion)"
           UpgradeCode="$(var.UpgradeCode)"
           Compressed="yes">
 
-    <!-- ВАРИАНТ А: гиперссылка на лицензию -->
     <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense" />
     <WixVariable Id="WixStdbaLicenseUrl" Value="https://example.com/license" />
 
-    <!-- Если предпочитаете RTF-окно лицензии, замените две строки выше на:
-    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
-    <WixVariable Id="WixStdbaLicenseRtf" Value="installer\license.rtf" />
-    -->
+    <!-- скрыть кнопку Restart -->
+    <WixVariable Id="WixStdbaSuppressRestart" Value="yes" />
 
     <!-- Проверка VC++ 2015–2022 x64 -->
     <util:RegistrySearch
@@ -37,7 +29,6 @@
         Win64="yes" />
 
     <Chain>
-      <!-- VC_redist -->
       <ExePackage
           Id="VCredist_x64"
           DisplayName="Microsoft Visual C++ 2015–2022 Redistributable (x64)"
@@ -50,7 +41,6 @@
           RepairCommand="/repair /passive /norestart"
           DetectCondition="(VCRedistInstalled >= 1) AND (VCRedistVersion >= v14.29.30000.0)" />
 
-      <!-- Ваш MSI (БЕЗ MsiProperty ALLUSERS) -->
       <MsiPackage
           Id="MyAppMsi"
           SourceFile="$(var.MsiPath)"
@@ -59,4 +49,3 @@
           DisplayInternalUI="yes" />
     </Chain>
   </Bundle>
-</Wix>

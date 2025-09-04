@@ -1,51 +1,58 @@
-  <Bundle Name="$(var.AppName)"
-          Manufacturer="$(var.Manufacturer)"
-          Version="$(var.BundleVersion)"
-          UpgradeCode="$(var.UpgradeCode)"
-          Compressed="yes">
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense" />
-    <WixVariable Id="WixStdbaLicenseUrl" Value="https://example.com/license" />
+    <Bundle Name="$(var.AppName)"
+            Manufacturer="$(var.Manufacturer)"
+            Version="$(var.BundleVersion)"
+            UpgradeCode="$(var.UpgradeCode)"
+            Compressed="yes">
 
-    <!-- скрыть кнопку Restart -->
-    <WixVariable Id="WixStdbaSuppressRestart" Value="yes" />
+      <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense" />
+      <WixVariable Id="WixStdbaLicenseUrl" Value="https://example.com/license" />
 
-    <!-- Проверка VC++ 2015–2022 x64 -->
-    <util:RegistrySearch
-        Id="VC15_22x64Installed"
-        Root="HKLM"
-        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
-        Value="Installed"
-        Variable="VCRedistInstalled"
-        Result="value"
-        Win64="yes" />
-    <util:RegistrySearch
-        Id="VC15_22x64Version"
-        Root="HKLM"
-        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
-        Value="Version"
-        Variable="VCRedistVersion"
-        Result="value"
-        Win64="yes" />
+      <!-- скрыть кнопку Restart -->
+      <WixVariable Id="WixStdbaSuppressRestart" Value="yes" />
 
-    <Chain>
-      <ExePackage
-          Id="VCredist_x64"
-          DisplayName="Microsoft Visual C++ 2015–2022 Redistributable (x64)"
-          SourceFile="$(var.VCRedistPath)"
-          Compressed="yes"
-          PerMachine="yes"
-          Permanent="yes"
-          Vital="yes"
-          InstallCommand="/install /passive /norestart"
-          RepairCommand="/repair /passive /norestart"
-          DetectCondition="(VCRedistInstalled >= 1) AND (VCRedistVersion >= v14.29.30000.0)" />
+      <!-- Проверка VC++ 2015–2022 x64 -->
+      <util:RegistrySearch
+          Id="VC15_22x64Installed"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+          Value="Installed"
+          Variable="VCRedistInstalled"
+          Result="value"
+          Win64="yes" />
+      <util:RegistrySearch
+          Id="VC15_22x64Version"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+          Value="Version"
+          Variable="VCRedistVersion"
+          Result="value"
+          Win64="yes" />
 
-      <MsiPackage
-          Id="MyAppMsi"
-          SourceFile="$(var.MsiPath)"
-          Vital="yes"
-          Visible="yes"
-          DisplayInternalUI="yes" />
-    </Chain>
-  </Bundle>
+      <Chain>
+        <ExePackage
+            Id="VCredist_x64"
+            DisplayName="Microsoft Visual C++ 2015–2022 Redistributable (x64)"
+            SourceFile="$(var.VCRedistPath)"
+            Compressed="yes"
+            PerMachine="yes"
+            Permanent="yes"
+            Vital="yes"
+            InstallCommand="/install /passive /norestart"
+            RepairCommand="/repair /passive /norestart"
+            DetectCondition="(VCRedistInstalled >= 1) AND (VCRedistVersion >= v14.29.30000.0)" />
+
+        <MsiPackage
+            Id="MyAppMsi"
+            SourceFile="$(var.MsiPath)"
+            Vital="yes"
+            Visible="no"
+            DisplayInternalUI="yes" />
+      </Chain>
+    </Bundle>
+
+</Wix>

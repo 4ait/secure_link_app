@@ -1,6 +1,6 @@
 [package]
 name = "secure_link_app"
-version = "0.3.1"
+version = "0.3.2"
 description = "A Tauri App"
 authors = ["Ridtt"]
 edition = "2021"

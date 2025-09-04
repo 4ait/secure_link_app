@@ -7,8 +7,8 @@ param(
 )
 
 # 1) Находим MSI от Tauri
-# Примерный путь: target\...\bundle\msi\*.msi
-$msi = Get-ChildItem -Recurse -Filter *.msi -Path .\target | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+$msi = Get-ChildItem -Recurse -Filter *.msi -Path ./target/x86_64-pc-windows-msvc/release/bundle/msi | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $msi) { throw "MSI not found under .\target" }
 
 # 2) Версию берём из имени MSI или тащим сами (здесь парсим из имени по шаблону 1.2.3)
@@ -17,8 +17,8 @@ $version = ($msi.BaseName | Select-String -Pattern '\d+\.\d+\.\d+(\.\d+)?' -AllM
 if (-not $version) { $version = "1.0.0.0" }
 
 # 3) Папки для obj и out
-New-Item -ItemType Directory -Force -Path .\bundle_obj | Out-Null
-New-Item -ItemType Directory -Force -Path .\bundle_dist | Out-Null
+New-Item -ItemType Directory -Force -Path .\target\bundle_obj | Out-Null
+New-Item -ItemType Directory -Force -Path .\target\bundle_dist | Out-Null
 
 # 4) Пути к WiX (если в PATH, можно просто вызвать по имени)
 $candle = "candle.exe"

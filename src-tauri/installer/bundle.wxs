@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <!-- В эти переменные мы передадим значения через -d при сборке -->
+  <?define AppName = "$(var.AppName)" ?>
+  <?define Manufacturer = "$(var.Manufacturer)" ?>
+  <?define BundleVersion = "$(var.BundleVersion)" ?>
+  <?define UpgradeCode = "$(var.UpgradeCode)" ?>
+  <?define MsiPath = "$(var.MsiPath)" ?>
+  <?define VCRedistPath = "$(var.VCRedistPath)" ?>
+
+  <Bundle Name="$(var.AppName)"
+          Manufacturer="$(var.Manufacturer)"
+          Version="$(var.BundleVersion)"
+          UpgradeCode="$(var.UpgradeCode)"
+          Compressed="yes"
+          PerMachine="yes">
+
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense" />
+
+    <!-- Проверка наличия VC++ 2015–2022 x64 -->
+    <util:RegistrySearch
+        Id="VC15_22x64Installed"
+        Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Installed"
+        Variable="VCREDIST_X64_INSTALLED"
+        Result="value"
+        Format="integer" />
+    <util:RegistrySearch
+        Id="VC15_22x64Version"
+        Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Version"
+        Variable="VCREDIST_X64_VERSION"
+        Result="value" />
+
+    <Chain>
+      <!-- VC_redist -->
+      <ExePackage
+          Id="VCredist_x64"
+          DisplayName="Microsoft Visual C++ 2015–2022 Redistributable (x64)"
+          SourceFile="$(var.VCRedistPath)"
+          Compressed="yes"
+          PerMachine="yes"
+          Permanent="yes"
+          Vital="yes"
+          InstallCommand="/install /passive /norestart"
+          RepairCommand="/repair /passive /norestart"
+          DetectCondition="(VCREDIST_X64_INSTALLED >= 1) AND (VCREDIST_X64_VERSION >= v14.29.30000.0)" />
+          <!-- При необходимости увеличьте минимальную версию -->
+
+      <!-- Ваш MSI от Tauri -->
+      <MsiPackage
+          Id="MyAppMsi"
+          SourceFile="$(var.MsiPath)"
+          Vital="yes"
+          Visible="yes"
+          DisplayInternalUI="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

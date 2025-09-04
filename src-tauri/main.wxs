@@ -11,10 +11,7 @@
     <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
 <?endif?>
 
-<Wix
-    xmlns="http://schemas.microsoft.com/wix/2006/wi"
-    xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product
             Id="*"
             Name="{{product_name}}"
@@ -351,33 +348,39 @@
         {{/if}}
 
         <InstallExecuteSequence>
+
+           <Custom Action="PS_KillApp_OnInstall" After="RemoveExistingProducts">
+             NOT Installed OR UPGRADINGPRODUCTCODE
+           </Custom>
+           <Custom Action="PS_KillApp_OnRemove" After="RemoveExistingProducts">
+             REMOVE="ALL"
+           </Custom>
+
           <Custom Action="LaunchApplication" After="InstallFinalize">AUTOLAUNCHAPP AND NOT Installed</Custom>
         </InstallExecuteSequence>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
 
-        <util:CloseApplication
-                Id="CloseMainApp"
-                Target="{{exe_name}}.exe"
-                Description="Идёт обновление {{product_name}}. Приложение будет закрыто."
-                CloseMessage="yes"
-                EndSessionMessage="yes"
-                Timeout="10"
-                TerminateProcess="1"
-                RebootPrompt="no" />
 
-            <InstallExecuteSequence>
-              <Custom Action="WixCloseApplications" Before="InstallInitialize">
-                NOT Installed OR UPGRADINGPRODUCTCODE
-              </Custom>
-              <Custom Action="WixCloseApplications" Before="InstallInitialize">
-                REMOVE="ALL"
-              </Custom>
-              <!-- опционально -->
-              <Custom Action="WixRestartApplications" After="InstallFinalize">
-                NOT REMOVE
-              </Custom>
-            </InstallExecuteSequence>
+        <!-- ЖЁСТКО закрыть приложение перед установкой/обновлением -->
+
+        <CustomAction
+            Id="PS_KillApp_OnInstall"
+            Execute="deferred"
+            Impersonate="no"
+            Directory="TARGETDIR"
+            ExeCommand='[SystemFolder]cmd.exe /c "[SystemFolder]WindowsPowerShell\v1.0\powershell.exe -NoProfile -WindowStyle hidden -ExecutionPolicy Bypass -Command ""taskkill /im secure_link_app.exe /F"""'
+            Return="ignore" />
+
+        <CustomAction
+            Id="PS_KillApp_OnRemove"
+            Execute="deferred"
+            Impersonate="no"
+            Directory="TARGETDIR"
+            ExeCommand='[SystemFolder]cmd.exe /c "[SystemFolder]WindowsPowerShell\v1.0\powershell.exe -NoProfile -WindowStyle hidden -ExecutionPolicy Bypass -Command ""taskkill /im secure_link_app.exe /F"""'
+            Return="ignore" />
+
+
 
     </Product>
 </Wix>

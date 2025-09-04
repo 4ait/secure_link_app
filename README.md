@@ -12,5 +12,8 @@ git submodule update --remote --merge
 
 ## build app
 
+$env:cargo tauri build --verbose ='-ext WixUtilExtension'
+$env:TAURI_WIX_LIGHT_ARGS='-ext WixUtilExtension'
+
 yarn tauri build --target x86_64-pc-windows-msvc --features windows 
 .\tools\bundle.ps1
